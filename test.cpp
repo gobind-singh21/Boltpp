@@ -1,6 +1,7 @@
 #include "httpserver.h"
 
 int main() {
+
   HttpServer server;
   
   server.Get("/", {}, [](Req &req, Res &res) {
@@ -12,10 +13,16 @@ int main() {
   });
 
   server.Post("/new-user", {}, [](Req &req, Res &res) {
-    std::unordered_map<std::string, std::string> user;
-    user["name"] = "Json";
-    user["age"] = "34";
-    res.json(user);
+    JSONValue::Object user;
+    user["name"] = "John";
+    user["details"] = JSONValue::Object{
+      {"age", 34.0},
+      {"hobbies", JSONValue::Array{"coding", "reading"}}
+    };
+
+    JSONValue userJson(user);
+
+    res.json(userJson)->status(200);
   });
   
   server.serverInit(AF_INET, SOCK_STREAM, IPPROTO_TCP, 9000);

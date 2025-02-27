@@ -3,6 +3,8 @@
 #include <unordered_map>
 #include <string>
 
+#include "json.h"
+
 class Res {
   int statusCode = 200;
   std::string payload;
@@ -21,15 +23,11 @@ public:
     return this;
   }
 
-  Res* json(const std::unordered_map<std::string, std::string> &map) {
-    std::string res = "{";
-    for(auto &it : map)
-      res += "\"" + it.first + "\":\"" + it.second + "\",";
-    res.pop_back();
-    res += '}';
-    this->payload = res;
+  Res* json(const JSONValue &j) {
+    std::string jsonString = j.stringify();
+    this->payload = jsonString;
     headers["Content-Type"] = "application/json";
-    headers["Content-Length"] = std::to_string(res.length());
+    headers["Content-Length"] = std::to_string(jsonString.length());
     return this;
   }
 

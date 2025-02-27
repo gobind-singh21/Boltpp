@@ -43,17 +43,17 @@ class HttpServer {
     return "Not Found";
   }
 
-  static std::string makeHttpResponse(Res &res) {
+  static std::string makeHttpResponse(const Res &res) {
     int statusCode = res.getStatusCode();
     std::string response = res.getProtocol() + " " + std::to_string(statusCode) + " " +
                            getStatusCodeWord(statusCode) + "\r\n";
-    for(auto &it : res.headers)
+    for(const auto &it : res.headers)
       response += it.first + ": " + it.second + "\r\n";
     response += "\r\n" + res.getPayload() + "\r\n";
     return response;
   }
 
-  static std::unordered_map<std::string, std::string> getQueryParameters(const std::string queryString) {
+  static std::unordered_map<std::string, std::string> getQueryParameters(const std::string &queryString) {
     std::stringstream ss(queryString);
     std::string temp;
     std::unordered_map<std::string, std::string> res;
@@ -68,7 +68,7 @@ class HttpServer {
   static std::pair<std::string, std::string> getHeaderKeyValue(const std::string &header) {
     std::string key = "", value = "";
     bool keyComplete = false;
-    for (char ch : header) {
+    for (const char &ch : header) {
       if(ch == ':')
         keyComplete = true;
       else if(!keyComplete)
@@ -79,7 +79,7 @@ class HttpServer {
     return {trim(key), trim(value)};
   }
 
-  static Req parseHttpRequest(std::string request) {
+  static Req parseHttpRequest(const std::string &request) {
     std::stringstream ss(request);
     std::string line;
     getline(ss, line);
@@ -106,8 +106,10 @@ class HttpServer {
     
     if(bytesRecieved > 0) {
       recvBuffer[bytesRecieved] = '\0';
+
+      std::string request(recvBuffer);
       
-      Req req = parseHttpRequest(std::string(recvBuffer));
+      Req req = parseHttpRequest(request);
       Res res;
       res.setProtocol(req.protocol);
 
