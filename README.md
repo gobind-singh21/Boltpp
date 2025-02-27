@@ -10,10 +10,13 @@
 - ### STEP 1:
   - Include the httpserver.h in your main c++ program.
     - ```#include "httpserver.h"```
+- ### STEP 2:
   - Make an object for HttpServer class in your c++ code.
     - ```HttpServer httpServer;```
+- ### STEP 3:
   - Define routes first (You can define them later but it is recommended to define it before initialization so that you don't encounter any unexpected behaviour (I'll soon look for its fix but it is what it for now)).
   - See test.cpp to get an idea for API end point example.
+- ### STEP 4:
   - Initialize server.
     - ```httpServer.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 9000);```
       - AF_INET : This is IPv4 address family, denoting server to use IPv4 address.
