@@ -4,7 +4,7 @@
 ## PREREQUISITES:
 - OS: Windows (with winsock2.dll in it)
 - Little bit knowledge of socket Programming not much
-- C++ version: Atleast C++17
+- C++ version: Atleast C++17 Atmax C++20 (C++23 Changes Implementation for JSON a bit so I'll look for it in the future)
 
 ## HOW TO USE:
 - ### STEP 1:
