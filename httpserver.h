@@ -157,7 +157,7 @@ public:
   HttpServer() : serverSocket(INVALID_SOCKET) {}
   HttpServer(const SOCKET s) : serverSocket(s) {}
 
-  int serverInit(int addressFamily, int type, int protocol, int port) {
+  int initServer(int addressFamily, int type, int protocol, int port) {
     WSADATA wsadata;
     int result = WSAStartup(MAKEWORD(2, 2), &wsadata);
     if(result != 0) {
