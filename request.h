@@ -1,0 +1,23 @@
+#pragma once
+
+#include <unordered_map>
+#include <string>
+
+class Req {
+public:
+  Req() : method(""), path(""), queryParameters({}), headers({}) {}
+  Req(std::string _method, std::string _path, std::string _protocol,
+      std::unordered_map<std::string, std::string> query,
+      std::unordered_map<std::string, std::string> _headers)
+      : method(_method), path(_path), protocol(_protocol),
+        queryParameters(query), headers(_headers) {}
+  Req(const Req &req)
+      : method(req.method), path(req.path), protocol(req.protocol),
+        queryParameters(req.queryParameters), headers(req.headers) {}
+
+  std::string method;
+  std::string path;
+  std::string protocol = "HTTP/1.1";
+  std::unordered_map<std::string, std::string> queryParameters;
+  std::unordered_map<std::string, std::string> headers;
+};
