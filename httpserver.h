@@ -93,6 +93,8 @@ class HttpServer {
       queryParameters = getQueryParameters(path.substr(queryParamPos, path.length() - queryParamPos - 1));
 
     while(getline(ss, line)) {
+      if(line == "\r\n" || line == "\n")
+        break;
       std::pair<std::string, std::string> headerKeyValue = getHeaderKeyValue(line);
       headers.insert(headerKeyValue);
     }
