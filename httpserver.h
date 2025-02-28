@@ -22,20 +22,17 @@ class HttpServer {
   class Route {
   public:
     Route() : middlewares({}), handler([](Req &req, Res &res) {}) {}
-    Route(std::vector<std::function<void(Req&, Res&, std::function<void()>)>> _middlewares,
+    Route(std::vector<std::function<void(Req&, Res&, size_t&)>> _middlewares,
           std::function<void(Req&, Res&)> _handler)
           : middlewares(_middlewares), handler(_handler) {}
     Route(const Route &route) : middlewares(route.middlewares), handler(route.handler) {}
   
-    std::vector<std::function<void(Req&, Res&, std::function<void()>)>> middlewares;
+    std::vector<std::function<void(Req&, Res&, size_t&)>> middlewares;
     std::function<void(Req&, Res&)> handler;
   };
 
   std::unordered_map<std::string, Route> allowed;
-
-  // void sendResponse(const SOCKET clientSocket, const std::string response) {
-
-  // }
+  std::vector<std::function<void(Req&, Res&, size_t&)>> globalMiddlewares;
 
   // Private static helper functions.
   static std::string getStatusCodeWord(const int statusCode) {
@@ -115,26 +112,37 @@ class HttpServer {
     return "Not Found";
   }
 
-
   static std::string makeHttpResponse(const Res &res) {
     int statusCode = res.getStatusCode();
     std::string response = res.getProtocol() + " " + std::to_string(statusCode) + " " +
-                           getStatusCodeWord(statusCode) + "\n\r";
+                           getStatusCodeWord(statusCode) + "\r\n";
     for(const auto &it : res.headers)
-      response += it.first + ": " + it.second + "\n\r";
-    response += "\n\r" + res.getPayload() + "\n\r";
+      response += it.first + ": " + it.second + "\r\n";
+    response += "\r\n" + res.getPayload() + "\r\n";
     return response;
   }
 
   static std::unordered_map<std::string, std::string> getQueryParameters(const std::string &queryString) {
-    std::stringstream ss(queryString);
-    std::string temp;
+    size_t size = queryString.length();
     std::unordered_map<std::string, std::string> res;
-    while(getline(ss, temp, '&')) {
-      std::vector<std::string> query = split(temp, '=');
-      query[1].replace(query[1].begin(), query[1].end(), "%20", " ");
-      res[query[0]] = query[1];
+    std::string key = "", value = "";
+    bool keyEnd = false;
+    for(size_t i = 0; i < size; i++) {
+      if(queryString[i] == '&') {
+        keyEnd = false;
+        if(key != "")
+          res[key] = value;
+        key = value = "";
+      }
+      if(queryString[i] == '=')
+        keyEnd = true;
+      if(keyEnd)
+        value += queryString[i];
+      else
+        key += queryString[i];
     }
+    if(key != "")
+      res[key] = value;
     return res;
   }
 
@@ -171,6 +179,7 @@ class HttpServer {
       if(headerEnd) {
         if(line.back() == '\r')
           line.pop_back();
+        line += '\n';
         payload += line;
         continue;
       }
@@ -193,13 +202,12 @@ class HttpServer {
   }
 
   // Private member functions to handle client connections.
-  void handleClientRequest(const SOCKET clientSocket) {
+  void handleClientRequest(const SOCKET &clientSocket) {
     char recvBuffer[10240];
     int bytesRecieved = recv(clientSocket, recvBuffer, sizeof(recvBuffer), 0);
     
     if(bytesRecieved > 0) {
       recvBuffer[bytesRecieved] = '\0';
-      std::cout << recvBuffer << std::endl;
 
       std::string request(recvBuffer);
       
@@ -208,12 +216,7 @@ class HttpServer {
       res.setProtocol(req.protocol);
 
       if(req.headers.find("Content-Length") != req.headers.end()) {
-        int contentLength = -1;
-        if(req.headers.find("Content-Length") == req.headers.end()) {
-          sendErrorResponse(res, clientSocket, 400);
-          return;
-        }
-        contentLength = std::stoi(req.headers["Content-Length"]);
+        int contentLength = std::stoi(req.headers["Content-Length"]);
         std::string payload = "";
         int totalRecieved = request.size() - request.find("\r\n\r\n") - 4;
         if(totalRecieved < contentLength) {
@@ -227,28 +230,37 @@ class HttpServer {
             totalRecieved += recieved;
           }
         }
-        req.payload = payload;
+        if(payload != "")
+          req.payload = payload;
       }
 
       std::string key = req.method + "::" + req.path;
       
       if(allowed.find(key) == allowed.end())
         res.status(404)->send("Not found");
-      else
+      else {
+        size_t i = 0, size = globalMiddlewares.size();
+        while(i < size)
+          globalMiddlewares[i](req, res, i);
+        i = 0;
+        size = allowed[key].middlewares.size();
+        while(i < size)
+          allowed[key].middlewares[i](req, res, i);
         allowed[key].handler(req, res);
+      }
       
       std::string httpResponse = makeHttpResponse(res);
       send(clientSocket, httpResponse.c_str(), httpResponse.length(), 0);
-      std::cout << "Response sent" << std::endl;
+      // std::cout << "Response sent" << std::endl;
     
     } else if(bytesRecieved == 0) {
       std::cerr << "Client disconnected" << std::endl;
       closesocket(clientSocket);
-      std::cout << "Client connection closed" << std::endl;
+      // std::cout << "Client connection closed" << std::endl;
     } else {
       std::cerr << "Error in receiving from client" << std::endl;
       closesocket(clientSocket);
-      std::cout << "Client connection closed" << std::endl;
+      // std::cout << "Client connection closed" << std::endl;
     }
     
     closesocket(clientSocket);
@@ -263,8 +275,10 @@ class HttpServer {
         std::cerr << "Accepting client failed: " << WSAGetLastError() << std::endl;
         continue;
       }
-      std::cout << "Client connected" << std::endl;
-      handleClientRequest(clientSocket);
+
+      std::thread clientThread(&HttpServer::handleClientRequest, this, clientSocket);
+      clientThread.detach();
+      // handleClientRequest(clientSocket);
     }
   }
 
@@ -316,37 +330,41 @@ public:
     return initialSocket;
   }
 
+  void use(std::function<void(Req&, Res&, size_t&)> middleware) {
+    globalMiddlewares.emplace_back(middleware);
+  }
+
   // Route registration functions.
   void Get(const std::string path,
-           const std::vector<std::function<void(Req&, Res&, std::function<void()>)>> middlewares,
+           const std::vector<std::function<void(Req&, Res&, size_t&)>> middlewares,
            std::function<void(Req&, Res&)> handler) {
     std::string key = "GET::" + path;
     allowed[key] = Route(middlewares, handler);
   }
 
   void Post(const std::string path,
-            const std::vector<std::function<void(Req&, Res&, std::function<void()>)>> middlewares,
+            const std::vector<std::function<void(Req&, Res&, size_t&)>> middlewares,
             std::function<void(Req&, Res&)> handler) {
     std::string key = "POST::" + path;
     allowed[key] = Route(middlewares, handler);
   }
 
   void Patch(const std::string path,
-             const std::vector<std::function<void(Req&, Res&, std::function<void()>)>> middlewares,
+             const std::vector<std::function<void(Req&, Res&, size_t&)>> middlewares,
              std::function<void(Req&, Res&)> handler) {
     std::string key = "PATCH::" + path;
     allowed[key] = Route(middlewares, handler);
   }
 
   void Put(const std::string path,
-           const std::vector<std::function<void(Req&, Res&, std::function<void()>)>> middlewares,
+           const std::vector<std::function<void(Req&, Res&, size_t&)>> middlewares,
            std::function<void(Req&, Res&)> handler) {
     std::string key = "PUT::" + path;
     allowed[key] = Route(middlewares, handler);
   }
 
   void Delete(const std::string path,
-              const std::vector<std::function<void(Req&, Res&, std::function<void()>)>> middlewares,
+              const std::vector<std::function<void(Req&, Res&, size_t&)>> middlewares,
               std::function<void(Req&, Res&)> handler) {
     std::string key = "DELETE::" + path;
     allowed[key] = Route(middlewares, handler);

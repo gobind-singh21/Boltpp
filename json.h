@@ -23,37 +23,37 @@ public:
   JSONValue(const Object o) : value(o) {}
 
   std::string stringify() const {
-    std::ostringstream oss;
-    std::visit([&oss](auto&& arg) {
+    std::string output = "";
+    std::visit([&output](auto&& arg) {
       using T = std::decay_t<decltype(arg)>;
       if constexpr (std::is_same_v<T, std::nullptr_t>)
-        oss << "null";
+        output += "null";
       else if constexpr (std::is_same_v<T, bool>)
-        oss << (arg ? "true" : "false");
+        output += (arg ? "true" : "false");
       else if constexpr (std::is_same_v<T, double>)
-        oss << arg;
+        output += std::to_string(arg);
       else if constexpr (std::is_same_v<T, std::string>)
-        oss << "\"" << arg << "\"";
+        output += "\"" + arg + "\"";
       else if constexpr (std::is_same_v<T, Array>) {
-        oss << "[";
+        output += "[";
         size_t size = arg.size();
         for(int i = 0; i < size; i++) {
           if(i > 0)
-            oss << ",";
-          oss << arg[i].stringify();
+            output += ",";
+          output += arg[i].stringify();
         }
-        oss << "]";
+        output += "]";
       } else if constexpr (std::is_same_v<T, Object>) {
-        oss << "{";
+        output += "{";
         bool first = true;
         for(const auto &kv : arg) {
-          if(!first) oss << ",";
+          if(!first) output += ",";
           first = false;
-          oss << "\"" << kv.first << "\":" << kv.second.stringify();
+          output += "\"" + kv.first + "\":" + kv.second.stringify();
         }
-        oss << "}";
+        output += "}";
       }
     }, value);
-    return oss.str();
+    return output;
   }
 };
