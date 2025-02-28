@@ -33,7 +33,9 @@
       - SOCK_STREAM : This is for server to use TCP connection (Right now it only supports TCP).
       - IPPROTO_TCP: This is to specify to use TCP protocol (again it support only TCP as of now).
       - 9000: This is the Port number on which your backend will run.
-- ### STEP 5:
+
+- ### STEP 5
+
   - Compile your program using with the following command:
     ```g++ <your_file_name> -lws2_32 -o <your_file_name>```
 
