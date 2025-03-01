@@ -157,7 +157,7 @@ class HttpServer {
     for(size_t i = pos; i < pathSize; i++) {
       char c = req.path[i];
       if(c == '&') {
-        req.headers[key] = value;
+        req.queryParameters[key] = value;
       } else if(c == '=') {
         keyEnd = true;
       } else if(c == '%' && i < thirdLast) {
@@ -175,7 +175,7 @@ class HttpServer {
       }
     }
     if(key != "")
-    req.headers[key] = value;
+      req.queryParameters[key] = value;
   }
 
   static void sendErrorResponse(Res &res, const SOCKET clientSocket, int statusCode) {
