@@ -122,73 +122,60 @@ class HttpServer {
     return response;
   }
 
-  static std::unordered_map<std::string, std::string> getQueryParameters(const std::string &queryString) {
-    size_t size = queryString.length();
-    std::unordered_map<std::string, std::string> res;
-    std::string key = "", value = "";
-    bool keyEnd = false;
-    for(size_t i = 0; i < size; i++) {
-      if(queryString[i] == '&') {
-        keyEnd = false;
-        if(key != "")
-          res[key] = value;
-        key = value = "";
+  static char urlEncodingCharacter(const std::string specialSequence) {
+    if(specialSequence[0] != '%' || specialSequence.length() != 3)
+      return '\0';
+    if(specialSequence.compare("%20") == 0) {
+      return ' ';
+    } else if(specialSequence.compare("%26") == 0) {
+      return '&';
+    } else if(specialSequence.compare("%3D") == 0) {
+      return '=';
+    } else if(specialSequence.compare("%3F") == 0) {
+      return '?';
+    } else if(specialSequence.compare("%23") == 0) {
+      return '#';
+    } else if(specialSequence.compare("%25") == 0) {
+      return '%';
+    }
+    return '\0';
+  }
+
+  static void parseQueryParameters(Req &req) {
+    size_t pathSize = req.path.length(), lastIndex = pathSize - 1, pos = -1;
+    for(size_t i = 0; i < pathSize; i++) {
+      if(req.path[i] == '?') {
+        pos = i;
+        break;
       }
-      if(queryString[i] == '=')
+    }
+    if(pos == -1 || pos == lastIndex)
+      return;
+    bool keyEnd = false;
+    size_t thirdLast = pathSize - 3;
+    std::string key = "", value = "";
+    for(size_t i = pos; i < pathSize; i++) {
+      char c = req.path[i];
+      if(c == '&') {
+        req.headers[key] = value;
+      } else if(c == '=') {
         keyEnd = true;
-      if(keyEnd)
-        value += queryString[i];
-      else
-        key += queryString[i];
+      } else if(c == '%' && i < thirdLast) {
+        char ch = urlEncodingCharacter(req.path.substr(i, 3));
+        if(keyEnd == false)
+          key.push_back(ch);
+        else
+          value.push_back(ch);
+        i += 2;
+      } else {
+        if(keyEnd == false)
+          key.push_back(c);
+        else
+          value.push_back(c);
+      }
     }
     if(key != "")
-      res[key] = value;
-    return res;
-  }
-
-  static std::pair<std::string, std::string> getHeaderKeyValue(const std::string &header) {
-    std::string key = "", value = "";
-    bool keyComplete = false;
-    for (const char &ch : header) {
-      if(ch == ':')
-        keyComplete = true;
-      else if(!keyComplete)
-        key += ch;
-      else
-        value += ch;
-    }
-    return {trim(key), trim(value)};
-  }
-
-  static Req parseHttpRequest(const std::string &request) {
-    std::stringstream ss(request);
-    std::string line;
-    getline(ss, line);
-    std::vector<std::string> firstLine = split(line, ' ');
-    std::string method = firstLine[0], path = firstLine[1], protocol = firstLine[2];
-    protocol.pop_back();
-
-    std::unordered_map<std::string, std::string> headers, queryParameters;
-    int queryParamPos = path.find("?");
-    if(queryParamPos != std::string::npos)
-      queryParameters = getQueryParameters(path.substr(queryParamPos, path.length() - queryParamPos - 1));
-    bool headerEnd = false;
-    std::string payload = "";
-
-    while(getline(ss, line)) {
-      if(headerEnd) {
-        if(line.back() == '\r')
-          line.pop_back();
-        line += '\n';
-        payload += line;
-        continue;
-      }
-      if(line == "\r" || line == "\n" || line == "\n\r")
-        headerEnd = true;
-      std::pair<std::string, std::string> headerKeyValue = getHeaderKeyValue(line);
-      headers.insert(headerKeyValue);
-    }
-    return Req(method, path, protocol, payload, queryParameters, headers);
+    req.headers[key] = value;
   }
 
   static void sendErrorResponse(Res &res, const SOCKET clientSocket, int statusCode) {
@@ -199,6 +186,70 @@ class HttpServer {
     res.json(jsonMessage)->status(statusCode);
     std::string responseMessage = makeHttpResponse(res);
     send(clientSocket, responseMessage.c_str(), responseMessage.length(), 0);
+  }
+  
+  static Req parseHttpRequest(const std::string &request, const SOCKET &clientSocket) {
+    Req req;
+    size_t size = request.size(), i = 0, lastIndex = size - 1, thirdLastIndex = size - 4;
+    short token = 0;
+    while(i < size && !(request[i] == '\r' && i < lastIndex && request[i + 1] == '\n')) {
+      char c = request[i];
+      if(c == ' ')
+        token++;
+      else {
+        if(token == 0)
+          req.method.push_back(c);
+        else if(token == 1)
+          req.path.push_back(c);
+        else if(token == 2)
+          req.protocol.push_back(c);
+      }
+      i++;
+    }
+    i += 2;
+
+    std::string key = "", value = "";
+    bool keyEnd = false;
+    while(i < size) {
+      char c = request[i];
+      if(c == ':') {
+        keyEnd = true;
+      } else if(i < thirdLastIndex && c == '\r' && request[i + 1] == '\n' && request[i + 2] == '\r' && request[i + 3] == '\n') {
+        if(key != "" && value != "") {
+          req.headers[trim(key)] = trim(value);
+          key = value = "";
+        } else {
+          Res res;
+          res.status(400)->setProtocol(req.protocol);
+          sendErrorResponse(res, clientSocket, 400);
+          req.payload = "Bad request";
+          return req;
+        }
+        break;
+      } else if(i < lastIndex && c == '\r' && request[i + 1] == '\n') {
+        keyEnd = false;
+        req.headers[trim(key)] = trim(value);
+        key = value = "";
+      } else {
+        if(keyEnd)
+          value.push_back(c);
+        else
+          key.push_back(c);
+      }
+      i++;
+    }
+    if(key != "" || value != "") {
+      Res res;
+      res.status(400)->setProtocol(req.protocol);
+      sendErrorResponse(res, clientSocket, 400);
+      req.payload = "Bad Request";
+      return req;
+    }
+    i += 4;
+
+    while(i < size)
+      req.payload.push_back(request[i++]);
+    return req;
   }
 
   // Private member functions to handle client connections.
@@ -211,8 +262,12 @@ class HttpServer {
 
       std::string request(recvBuffer);
       
-      Req req = parseHttpRequest(request);
       Res res;
+      Req req = parseHttpRequest(request, clientSocket);
+      if(req.payload == "Bad Request") {
+        closesocket(clientSocket);
+        return;
+      }
       res.setProtocol(req.protocol);
 
       if(req.headers.find("Content-Length") != req.headers.end()) {

@@ -5,7 +5,7 @@
 
 class Req {
 public:
-  Req() : method(""), path(""), protocol("HTTP/1.1"), payload(""), queryParameters({}), headers({}) {}
+  Req() : method(""), path(""), protocol(""), payload(""), queryParameters({}), headers({}) {}
   Req(std::string _method, std::string _path, std::string _protocol, std::string _payload,
       std::unordered_map<std::string, std::string> query,
       std::unordered_map<std::string, std::string> _headers)
