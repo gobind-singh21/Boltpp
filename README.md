@@ -47,5 +47,4 @@
 - It only supports TCP (UDP support will be added in future).
 - Support for Websocket will arrive later on.
 - Supports only HTTP/1.1 (some features are to be implemented as of now).
-- Doesn't have support of middleware as of now (even though I have kept middleware variables but they are not implemented).
 - Support for JSON parsing in request and payload of http request is on work.
