@@ -37,7 +37,7 @@
 - ### STEP 5
 
   - Compile your program using with the following command:
-    ```g++ <your_file_name> -lws2_32 -o <your_file_name>```
+    ```g++ -O3 <your_file_name> -lws2_32 -o <your_file_name>```
 
 ### NOTE
 

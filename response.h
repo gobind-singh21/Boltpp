@@ -31,7 +31,7 @@ public:
     return this;
   }
 
-  Res* send(std::string data) {
+  Res* send(const std::string data) {
     this->payload = data;
     headers["Content-Type"] = "text/plain; charset=UTF-8";
     headers["Content-Length"] = std::to_string(data.length());

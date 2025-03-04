@@ -27,31 +27,37 @@ public:
     std::visit([&output](auto&& arg) {
       using T = std::decay_t<decltype(arg)>;
       if constexpr (std::is_same_v<T, std::nullptr_t>)
-        output += "null";
+        output.append("null");
       else if constexpr (std::is_same_v<T, bool>)
-        output += (arg ? "true" : "false");
+        output.append(arg ? "true" : "false");
       else if constexpr (std::is_same_v<T, double>)
-        output += std::to_string(arg);
-      else if constexpr (std::is_same_v<T, std::string>)
-        output += "\"" + arg + "\"";
+        output.append(std::to_string(arg));
+      else if constexpr (std::is_same_v<T, std::string>) {
+        output.append("\"");
+        output.append(arg);
+        output.append("\"");
+      }
       else if constexpr (std::is_same_v<T, Array>) {
-        output += "[";
+        output.append("[");
         size_t size = arg.size();
         for(int i = 0; i < size; i++) {
           if(i > 0)
-            output += ",";
-          output += arg[i].stringify();
+            output.append(",");
+          output.append(arg[i].stringify());
         }
-        output += "]";
+        output.append("]");
       } else if constexpr (std::is_same_v<T, Object>) {
-        output += "{";
+        output.append("{");
         bool first = true;
         for(const auto &kv : arg) {
-          if(!first) output += ",";
+          if(!first) output.append(",");
           first = false;
-          output += "\"" + kv.first + "\":" + kv.second.stringify();
+          output.append("\"");
+          output.append(kv.first);
+          output.append("\":");
+          output.append(kv.second.stringify());
         }
-        output += "}";
+        output.append("}");
       }
     }, value);
     return output;
