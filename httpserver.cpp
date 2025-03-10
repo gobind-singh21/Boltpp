@@ -103,19 +103,18 @@ std::string HttpServer::makeHttpResponse(const Res &res) {
 char HttpServer::urlEncodingCharacter(const std::string specialSequence) {
   if(specialSequence[0] != '%' || specialSequence.length() != 3)
     return '\0';
-  if(specialSequence.compare("%20") == 0) {
+  if(specialSequence.compare("%20") == 0)
     return ' ';
-  } else if(specialSequence.compare("%26") == 0) {
+  else if(specialSequence.compare("%26") == 0)
     return '&';
-  } else if(specialSequence.compare("%3D") == 0) {
+  else if(specialSequence.compare("%3D") == 0)
     return '=';
-  } else if(specialSequence.compare("%3F") == 0) {
+  else if(specialSequence.compare("%3F") == 0)
     return '?';
-  } else if(specialSequence.compare("%23") == 0) {
+  else if(specialSequence.compare("%23") == 0)
     return '#';
-  } else if(specialSequence.compare("%25") == 0) {
+  else if(specialSequence.compare("%25") == 0)
     return '%';
-  }
   return '\0';
 }
 
@@ -314,16 +313,13 @@ void HttpServer::handleClientRequest(const SOCKET &clientSocket) {
     
     std::string httpResponse = makeHttpResponse(res);
     send(clientSocket, httpResponse.c_str(), httpResponse.length(), 0);
-    // std::cout << "Response sent" << std::endl;
   
   } else if(bytesRecieved == 0) {
     std::cerr << "Client disconnected" << std::endl;
     closesocket(clientSocket);
-    // std::cout << "Client connection closed" << std::endl;
   } else {
     std::cerr << "Error in receiving from client" << std::endl;
     closesocket(clientSocket);
-    // std::cout << "Client connection closed" << std::endl;
   }
   
   closesocket(clientSocket);
