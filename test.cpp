@@ -39,8 +39,7 @@ int main() {
     JSONParser parser5(jsonStr5);
     JSONValue result5 = parser5.parse();
     std::cout << "Test 5 Failed (this line should not be reached)\n";
-  }
-  catch(const std::exception &e) {
+  } catch(const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
   }
   

@@ -1,3 +1,4 @@
 server.cpp
 *.exe
 .vscode
+test.cpp

@@ -161,22 +161,14 @@ class JSONParser {
       get();
       return JSONValue(obj);
     }
-    if(get() != '"')
+    if(peek() != '"')
       throw std::runtime_error("Expected \" as starting of key in JSON object");
     else {
       while(true) {
-        std::string key = "";
-        key.reserve(100);
-        JSONValue value;
-        while(true) {
-          char c = get();
-          if(c == ':' || pos >= size)
-            throw std::runtime_error("Unterminated key");
-          else if(c == '"')
-            break;
-          else
-            key.push_back(c);
-        }
+        JSONValue keyObj = parseString(), value;
+        if(!std::holds_alternative<std::string>(keyObj.value))
+          throw std::runtime_error("Object key is not a string");
+        std::string key = std::get<std::string>(keyObj.value);
         skipWhitespaces();
         if(get() != ':')
           throw std::runtime_error("Missing : after key value");
@@ -201,7 +193,7 @@ class JSONParser {
             case '8':
             case '9':
             case '0': value = parseNumber(); break;
-            default: throw std::runtime_error("Unexpected symbol caught");
+            default: throw std::runtime_error(std::string("Unexpected symbol caught: ") + c);
           }
         }
         obj[key] = value;
@@ -211,11 +203,11 @@ class JSONParser {
           break;
         else if(c == ',') {
           skipWhitespaces();
-          if(get() != '"')
-            throw std::runtime_error("Expected \" as starting of key");
+          if(peek() != '"')
+            throw std::runtime_error("Expected \" as starting of key in JSON object");
         }
         else
-          throw std::runtime_error("Expected '}' or ',' but encountered unexpected symbol");
+          throw std::runtime_error(std::string("Expected '}' or ',' but encountered unexpected symbol: ") + c);
       }
     }
     return JSONValue(obj);
@@ -246,7 +238,7 @@ class JSONParser {
         case '7':
         case '8':
         case '9': value = parseNumber(); break;
-        default: throw std::runtime_error("Unexpected symbol caught");
+        default: throw std::runtime_error(std::string("Unexpected symbol caught: ") + c);
       }
       skipWhitespaces();
       c = get();
@@ -259,7 +251,7 @@ class JSONParser {
         skipWhitespaces();
       }
       else
-        throw std::runtime_error("Unexpected symbol caught");
+        throw std::runtime_error(std::string("Unexpected symbol caught: ") + c);
     }
     return JSONValue(arr);
   }
@@ -291,7 +283,7 @@ public:
       case '7':
       case '8':
       case '9': json = parseNumber(); break;
-      default: throw std::runtime_error("Unexpected symbol caught");
+      default: throw std::runtime_error(std::string("Unexpected symbol caught: ") + c);
     }
     skipWhitespaces();
     if(pos >= size)
