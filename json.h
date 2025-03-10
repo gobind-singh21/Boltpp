@@ -270,10 +270,10 @@ public:
   inline void setJsonString(const std::string &jsonString) { input = jsonString; }
 
   JSONValue parse() {
-    JSONValue json;
     skipWhitespaces();
     if(pos >= size || input == "")
-      return json;
+      return JSONValue();
+    JSONValue json;
     char c = peek();
     switch(c) {
       case '"': json = parseString(); break;
