@@ -98,6 +98,7 @@ class JSONParser {
         skipWhitespaces();
         char c = peek();
         switch(c) {
+          case '}': throw std::runtime_error("Expected a value for key but detected '}' before value"); break;
           case '"': value = parseString(); break;
           case '{': value = parseObject(); break;
           case '[': value = parseArray(); break;
