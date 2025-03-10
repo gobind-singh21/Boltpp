@@ -203,6 +203,8 @@ class JSONParser {
           break;
         else if(c == ',') {
           skipWhitespaces();
+          if(peek() == '}')
+            throw std::runtime_error("Trailing commas not allowed in JSON object");
           if(peek() != '"')
             throw std::runtime_error("Expected \" as starting of key in JSON object");
         }
@@ -217,6 +219,10 @@ class JSONParser {
     JSONValue::Array arr;
     get();
     skipWhitespaces();
+    if(peek() == ']') {
+      get();
+      return JSONValue(arr);
+    }
     while(true) {
       char c = peek();
       JSONValue value;
@@ -249,6 +255,8 @@ class JSONParser {
       else if(c == ',') {
         arr.emplace_back(value);
         skipWhitespaces();
+        if(peek() == ']')
+          throw std::runtime_error("Trailing commas not allowed in JSON arrays");
       }
       else
         throw std::runtime_error(std::string("Unexpected symbol caught: ") + c);
@@ -264,6 +272,8 @@ public:
   JSONValue parse() {
     JSONValue json;
     skipWhitespaces();
+    if(pos >= size || input == "")
+      return json;
     char c = peek();
     switch(c) {
       case '"': json = parseString(); break;
