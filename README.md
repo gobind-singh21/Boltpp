@@ -1,50 +1,197 @@
-# CPP HTTP Server library
+# Boltpp - High Performance C++ HTTP Server Library
 
-- This library is made so that you can make Backend in c++ with coding style on NodeJS.
+Boltpp is a lightweight and high-performance C++ HTTP server library designed for building HTTP servers with middleware support. Inspired by Express.js, it offers a simple and powerful API for defining routes, handling requests, and managing responses. It also includes a custom JSON parser and serializer for processing JSON data.
 
-## PREREQUISITES
+---
 
-- OS: Windows (with winsock2.dll in it)
-- Little bit knowledge of socket Programming (not much)
-- C++ version: Atleast C++17 Atmax C++20 (C++23 Changes Implementation for JSON a bit so I'll look for it in the future)
+## Features
 
-## HOW TO USE
+- Supports all HTTP methods: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`
+- Middleware support for request handling
+- Custom JSON parsing and serialization
+- Efficient request handling using `std::thread`
+- URL query parameter parsing
+- Request and response object handling
 
-- ### STEP 1
+---
 
-  - Include the httpserver.h in your main c++ program.
-    - ```#include "httpserver.h"```
+## Requirements
 
-- ### STEP 2
+- C++17 or later
+- CMake 3.10 or later
+- Ninja (Recommended for building)
+- MinGW / MSVC (Windows)
 
-  - Make an object for HttpServer class in your c++ code.
-    - ```HttpServer httpServer;```
+---
 
-- ### STEP 3
+## Building the Library
 
-  - Define routes first (You can define them later but it is recommended to define it before initialization so that you don't encounter any unexpected behaviour (I'll soon look for its fix but it is what it for now)).
-  - See test.cpp to get an idea for API end point example.
+### Cloning the Repository
 
-- ### STEP 4
+Ensure your directory structure looks like this:
 
-  - Initialize server.
-    - ```httpServer.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 9000);```
-      - AF_INET : This is IPv4 address family, denoting server to use IPv4 address.
-      - SOCK_STREAM : This is for server to use TCP connection (Right now it only supports TCP).
-      - IPPROTO_TCP: This is to specify to use TCP protocol (again it support only TCP as of now).
-      - 9000: This is the Port number on which your backend will run.
+```
+Boltpp/
+├── CMakeLists.txt          # Main CMake file
+├── include/                # Public headers
+├── src/                    # Private source files (DO NOT upload these to GitHub)
+├── test/                   # Example or test applications
+```
 
-- ### STEP 5
+### Building with CMake and Ninja
 
-  - Compile your program using with the following command:
-    ```g++ -O3 <your_file_name> -lws2_32 -o <your_file_name>```
+```bash
+mkdir build
+cd build
+cmake .. -G "Ninja"
+ninja
+```
 
-### NOTE
+### Installing the Library
 
-- This library is currently in progress with major functionalities in the process of their implementation
-- There are a lot of optimizations and security enhancements to be made as of now
-- Right now it has been built keeping in mind that you are using it on windows (Linux version will be made after windows implementation of it is completed).
-- It only supports TCP (UDP support will be added in future).
-- Support for Websocket will arrive later on.
-- Supports only HTTP/1.1 (some features are to be implemented as of now).
-- Support for JSON parsing in request and payload of http request is on work.
+```bash
+ninja install
+```
+
+This will install the library to the default install location (e.g., `C:/Program Files (x86)/Boltpp/`). The installation includes:
+
+- Public headers in the `include/` directory.
+- Compiled binary files in the `lib/` directory.
+- A `BoltppConfig.cmake` file in `lib/cmake/Boltpp/` for use with `find_package()`.
+
+---
+
+## Using the Library in a New Project
+
+### Example `main.cpp`
+
+```cpp
+#include <iostream>
+#include "httpserver.h"
+
+int main() {
+    HttpServer server;
+
+    server.Get("/user", {}, [](Req &req, Res &res) {
+        JSONValue::Object userInfo = { {"name", "Alex"}, {"age", 22.0} };
+        res.json(JSONValue(userInfo))->status(200);
+    });
+
+    server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 8000);
+    getchar();
+    return 0;
+}
+```
+
+### Example `CMakeLists.txt`
+
+```cmake
+cmake_minimum_required(VERSION 3.10)
+project(MyApp)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+find_package(Boltpp REQUIRED)
+
+add_executable(MyApp main.cpp)
+target_link_libraries(MyApp Boltpp::Boltpp)
+```
+
+### Building the Project
+
+```bash
+mkdir build
+cd build
+cmake .. -G "Ninja" -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Boltpp"
+ninja
+```
+
+---
+
+## API Reference
+
+### `HttpServer` Class
+
+- **initServer(int, int, int, int)**: Initializes and starts the server.
+- **use(std::function<void(Req&, Res&, long long&)>)**: Registers global middleware.
+- **Get, Post, Put, Patch, Delete**: Define routes for various HTTP methods.
+
+### `Req` Class
+
+- **method**: The HTTP method (e.g., "GET", "POST").
+- **path**: The URL path.
+- **headers**: HTTP headers.
+- **payload**: Request body.
+
+### `Res` Class
+
+- **status(int)**: Sets HTTP status code.
+- **json(const JSONValue&)**: Sends a JSON response.
+- **send(const std::string&)**: Sends a plain text response.
+- **setHeader(const std::string&, const std::string&)**: Adds headers to the response.
+
+---
+
+## JSON Parser
+
+### Parsing JSON Strings
+
+```cpp
+std::string jsonStr = R"({"name": "John", "age": 30, "isAdmin": true})";
+JSONParser parser(jsonStr);
+JSONValue jsonValue = parser.parse();
+```
+
+### Creating JSON Objects
+
+```cpp
+JSONValue::Object obj = {
+    {"name", "Alice"},
+    {"age", 25.0},
+    {"hobbies", JSONValue::Array{"coding", "reading"}}
+};
+JSONValue json(obj);
+std::cout << json.stringify() << std::endl;
+```
+
+---
+
+## Distribution as Compiled Binaries
+
+To protect your source code while allowing others to use the library, distribute only the compiled binaries along with the public headers.
+
+### CMake Configuration
+
+The `CMakeLists.txt` file is configured to:
+
+- Build the library from the private `src/` files.
+- Install only the public headers from the `include/` directory.
+- Export a `BoltppConfig.cmake` file for use with `find_package()`.
+
+### GitHub Repository Guidelines
+
+- **Do not upload the `src/` directory.** Add it to `.gitignore` so only public headers, CMake files, and documentation are published.
+- Provide precompiled binaries as GitHub Releases if needed.
+
+---
+
+## License
+
+Include your license information here (e.g., MIT, GPL, Custom).
+
+---
+
+## Contributing
+
+If you would like to contribute, please fork the repository and submit pull requests. Include tests and update documentation as necessary.
+
+---
+
+## Contact
+
+For questions or support, please contact [Your Name](https://github.com/YourUsername) or open an issue in this repository.
+
+```
+
+Feel free to modify the content to match your project's specifics, such as the project name, contact information, or license details.
