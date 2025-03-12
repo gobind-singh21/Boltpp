@@ -10,7 +10,7 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
-using Middleware = std::function<void(Req&, Res&, std::function<void()>)>;
+// using Middleware = std::function<void(Req&, Res&, std::function<void()>)>;
 
 class HttpServer {
   SOCKET serverSocket;

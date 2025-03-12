@@ -1,4 +1,15 @@
-server.cpp
-*.exe
 .vscode/
+build/
+src/
+server.cpp
 test.cpp
+*.exe
+*.o
+*.obj
+*.pdb
+*.lib
+*.dll
+*.exe
+*.a
+*.cache
+*.log
