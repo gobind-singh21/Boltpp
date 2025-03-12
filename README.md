@@ -43,7 +43,7 @@
 
 - This library is currently in progress with major functionalities in the process of their implementation
 - There are a lot of optimizations and security enhancements to be made as of now
-- Right now it has been keeping in mind that you are using it on windows (Linux version will be made after windows implementation of it is completed).
+- Right now it has been built keeping in mind that you are using it on windows (Linux version will be made after windows implementation of it is completed).
 - It only supports TCP (UDP support will be added in future).
 - Support for Websocket will arrive later on.
 - Supports only HTTP/1.1 (some features are to be implemented as of now).
