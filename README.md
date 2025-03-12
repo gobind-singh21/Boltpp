@@ -157,10 +157,6 @@ std::cout << json.stringify() << std::endl;
 
 ---
 
-## Distribution as Compiled Binaries
-
-To protect your source code while allowing others to use the library, distribute only the compiled binaries along with the public headers.
-
 ### CMake Configuration
 
 The `CMakeLists.txt` file is configured to:
@@ -176,22 +172,6 @@ The `CMakeLists.txt` file is configured to:
 
 ---
 
-## License
-
-Include your license information here (e.g., MIT, GPL, Custom).
-
----
-
 ## Contributing
 
 If you would like to contribute, please fork the repository and submit pull requests. Include tests and update documentation as necessary.
-
----
-
-## Contact
-
-For questions or support, please contact [Your Name](https://github.com/YourUsername) or open an issue in this repository.
-
-```
-
-Feel free to modify the content to match your project's specifics, such as the project name, contact information, or license details.
