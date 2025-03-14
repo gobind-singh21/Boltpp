@@ -30,7 +30,7 @@ Boltpp is a lightweight and high-performance C++ HTTP server library designed fo
 
 Ensure your directory structure looks like this:
 
-```
+```file
 Boltpp/
 ├── CMakeLists.txt          # Main CMake file
 ├── include/                # Public headers
