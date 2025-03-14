@@ -20,7 +20,6 @@ Boltpp is a lightweight and high-performance C++ HTTP server library designed fo
 - C++17 or later
 - CMake 3.10 or later
 - Ninja (Recommended for building)
-- MinGW / MSVC (Windows)
 
 ---
 
