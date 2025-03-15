@@ -3,6 +3,8 @@
 #include <unordered_map>
 #include <string>
 
+#include "json.h"
+
 class Req {
 public:
   Req() : method(""), path(""), protocol(""), payload(""), queryParameters({}), headers({}) {}
@@ -21,4 +23,5 @@ public:
   std::string payload;
   std::unordered_map<std::string, std::string> queryParameters;
   std::unordered_map<std::string, std::string> headers;
+  JSONValue body;
 };
