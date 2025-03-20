@@ -113,7 +113,27 @@ ninja
 ### `HttpServer` Class
 
 - **initServer(int, int, int, int)**: Initializes and starts the server.
+
 - **use(std::function<void(Req&, Res&, long long&)>)**: Registers global middleware.
+
+  - To move control to next middleware increment next variable by 1
+
+    ```cpp
+    next++;
+    ```
+
+  - If you want to skip a middleware you can do so by appropriately increasing next variable.
+
+    ```cpp
+    next += 2; // To skip the next middleware and jump to middleware just after next middleware
+    ```
+
+  - In order to stop the flow of middleware and return the response object then set next variable to a negative value;
+
+   ```cpp
+   next = -1; // stops control fow of middleware and returns response object after that middleware to the sender (could be any negative value)
+   ```
+
 - **Get, Post, Put, Patch, Delete**: Define routes for various HTTP methods.
 
 ### `Req` Class
@@ -156,6 +176,18 @@ std::cout << json.stringify() << std::endl;
 
 ---
 
+## Pre Defined Middlewares
+
+### JsonBodyParser
+
+- **Syntax** :
+
+ ```cpp
+ JsonBodyParser(Req &req, Res &res, long long &next);
+ ```
+
+- Parses the json body of req object present in ```req.payload``` and stores it in ```req.body``` field as JSONValue object.
+
 ### CMake Configuration
 
 The `CMakeLists.txt` file is configured to:
@@ -163,14 +195,3 @@ The `CMakeLists.txt` file is configured to:
 - Build the library from the private `src/` files.
 - Install only the public headers from the `include/` directory.
 - Export a `BoltppConfig.cmake` file for use with `find_package()`.
-
-### GitHub Repository Guidelines
-
-- **Do not upload the `src/` directory.** Add it to `.gitignore` so only public headers, CMake files, and documentation are published.
-- Provide precompiled binaries as GitHub Releases if needed.
-
----
-
-## Contributing
-
-If you would like to contribute, please fork the repository and submit pull requests. Include tests and update documentation as necessary.
