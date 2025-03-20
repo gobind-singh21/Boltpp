@@ -130,9 +130,9 @@ ninja
 
   - In order to stop the flow of middleware and return the response object then set next variable to a negative value;
 
-   ```cpp
-   next = -1; // stops control fow of middleware and returns response object after that middleware to the sender (could be any negative value)
-   ```
+    ```cpp
+    next = -1; // stops control fow of middleware and returns response object after that middleware to the sender (could be any negative value)
+    ```
 
 - **Get, Post, Put, Patch, Delete**: Define routes for various HTTP methods.
 
