@@ -4,7 +4,6 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
-#include <sstream>
 
 class JSONValue {
 public:
@@ -21,6 +20,7 @@ public:
   JSONValue(const char *s) : value(std::string(s)) {}
   JSONValue(const Array a) : value(a) {}
   JSONValue(const Object o) : value(o) {}
+  JSONValue(const JSONValue &json) : value(json.value) {}
 
   std::string stringify() const;
 };
