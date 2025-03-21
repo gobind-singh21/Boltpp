@@ -26,6 +26,7 @@ class HttpServer {
     std::function<void(Req&, Res&)> handler;
   };
 
+  std::unordered_map<SOCKET, std::string> socketBuffers;
   std::unordered_map<std::string, Route> allowed;
   std::vector<std::function<void(Req&, Res&, long long&)>> globalMiddlewares;
 
