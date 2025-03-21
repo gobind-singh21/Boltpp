@@ -1,197 +1,230 @@
-# Boltpp - High Performance C++ HTTP Server Library
+# C++ HTTP Server Library
 
-Boltpp is a lightweight and high-performance C++ HTTP server library designed for building HTTP servers with middleware support. Inspired by Express.js, it offers a simple and powerful API for defining routes, handling requests, and managing responses. It also includes a custom JSON parser and serializer for processing JSON data.
+A lightweight HTTP server library written in C++ designed for Windows. This library provides a simple yet flexible framework for building web servers with support for routing, middleware, and JSON parsing. It leverages Winsock2 for network communication and uses modern C++ features (such as std::variant) for JSON handling.
 
----
+## Table of Contents
+
+- [C++ HTTP Server Library](#c-http-server-library)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Requirements](#requirements)
+  - [Installation and Compilation](#installation-and-compilation)
+  - [Usage](#usage)
+    - [Initializing the Server](#initializing-the-server)
+    - [Routing and HTTP Methods](#routing-and-http-methods)
+    - [Middleware Support](#middleware-support)
+    - [JSON Parsing and Response](#json-parsing-and-response)
+  - [API Reference](#api-reference)
+    - [HttpServer Class](#httpserver-class)
+    - [Request (Req) Class](#request-req-class)
+    - [Response (Res) Class](#response-res-class)
+    - [JSON Handling](#json-handling)
+    - [Utilities](#utilities)
 
 ## Features
 
-- Supports all HTTP methods: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`
-- Middleware support for request handling
-- Custom JSON parsing and serialization
-- Efficient request handling using `std::thread`
-- URL query parameter parsing
-- Request and response object handling
-
----
+- **Basic HTTP Server**: Create a server that listens on a specified port.
+- **Routing**: Define routes for HTTP methods such as GET, POST, PUT, PATCH, and DELETE.
+- **Middleware Support**: Chain middleware functions to process requests (e.g., for parsing JSON bodies).
+- **JSON Parsing and Stringifying**: Convert between JSON strings and in-memory objects.
+- **Query Parameter Parsing**: Automatically extract query parameters from request URLs.
+- **Threaded Request Handling**: Each client connection is handled in a separate thread.
 
 ## Requirements
 
-- C++17 or later
-- CMake 3.10 or later
-- Ninja (Recommended for building)
+- **Operating System**: Windows (using Winsock2 for networking)
+- **Compiler**: C++17 compliant compiler
+- **Libraries**: Standard C++ libraries; Winsock2 (ws2_32.lib)
 
----
+## Installation and Compilation
 
-## Building the Library
+1. **Clone or Download the Repository** containing the following key files:
+   - `httpserver.h` and `httpserver.cpp`
+   - `json.h` and `json.cpp`
+   - `request.h`
+   - `response.h` and `response.cpp`
+   - `middlewares.h`
+   - `utils.h`
 
-### Cloning the Repository
+2. **Compile the Library**  
+   When using Visual Studio or another Windows C++ compiler, ensure that you link against `ws2_32.lib`. For example, if using the command line with `cl`:
 
-Ensure your directory structure looks like this:
+   ```bash
+   cl /EHsc httpserver.cpp json.cpp response.cpp main.cpp /link ws2_32.lib
+   ```
 
-```file
-Boltpp/
-├── CMakeLists.txt          # Main CMake file
-├── include/                # Public headers
-├── src/                    # Private source files (DO NOT upload these to GitHub)
-├── test/                   # Example or test applications
-```
+   Replace `main.cpp` with your application source file.
 
-### Building with CMake and Ninja
+## Usage
 
-```bash
-mkdir build
-cd build
-cmake .. -G "Ninja"
-ninja
-```
+### Initializing the Server
 
-### Installing the Library
-
-```bash
-ninja install
-```
-
-This will install the library to the default install location (e.g., `C:/Program Files (x86)/Boltpp/`). The installation includes:
-
-- Public headers in the `include/` directory.
-- Compiled binary files in the `lib/` directory.
-- A `BoltppConfig.cmake` file in `lib/cmake/Boltpp/` for use with `find_package()`.
-
----
-
-## Using the Library in a New Project
-
-### Example `main.cpp`
+Create an instance of the `HttpServer` class and initialize it by specifying the address family, socket type, protocol, and port number. For example:
 
 ```cpp
-#include <iostream>
 #include "httpserver.h"
 
 int main() {
-    HttpServer server;
+  HttpServer server;
+  // Initialize server for IPv4, TCP, and port 8080
+  int serverSocket = server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 8080);
+  
+  // The server starts listening on a separate thread
+  // Your application can continue running or perform other tasks
 
-    server.Get("/user", {}, [](Req &req, Res &res) {
-        JSONValue::Object userInfo = { {"name", "Alex"}, {"age", 22.0} };
-        res.json(JSONValue(userInfo))->status(200);
-    });
-
-    server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 8000);
-    getchar();
-    return 0;
+  while(true) {
+    // Main thread work or sleep
+  }
+  
+  return 0;
 }
 ```
 
-### Example `CMakeLists.txt`
+### Routing and HTTP Methods
 
-```cmake
-cmake_minimum_required(VERSION 3.10)
-project(MyApp)
+Define routes using the provided methods on the `HttpServer` class. Each route takes:
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+- A **path** (e.g., `"/hello"`)
+- An optional vector of middleware functions
+- A **handler** function that receives a request (`Req`) and response (`Res`) object.
 
-find_package(Boltpp REQUIRED)
+Example of defining a GET route:
 
-add_executable(MyApp main.cpp)
-target_link_libraries(MyApp Boltpp::Boltpp)
+```cpp
+#include "httpserver.h"
+#include "request.h"
+#include "response.h"
+
+int main() {
+  HttpServer server;
+  server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 8080);
+
+  // Define a simple GET route
+  server.Get("/hello", {},
+    [](Req &req, Res &res) {
+      res.send("Hello, world!");
+    }
+  );
+
+  while(true) { }
+  return 0;
+}
 ```
 
-### Building the Project
+Similarly, you can use `Post()`, `Put()`, `Patch()`, and `Delete()` methods to define routes for other HTTP methods.
 
-```bash
-mkdir build
-cd build
-cmake .. -G "Ninja" -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Boltpp"
-ninja
+### Middleware Support
+
+Middleware functions allow you to preprocess requests before reaching the route handler. The library supports global middleware (applied to every request) using the `use()` method, and route-specific middleware as part of the route registration.
+
+Example using a JSON body parser middleware:
+
+```cpp
+#include "httpserver.h"
+#include "middlewares.h"
+
+int main() {
+  HttpServer server;
+  server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 8080);
+
+  // Apply global middleware to parse JSON bodies
+  server.use(JsonBodyParser);
+
+  // Define a POST route that expects JSON input
+  server.Post("/data", {},
+    [](Req &req, Res &res) {
+      // After middleware, req.body holds the parsed JSON (of type JSONValue)
+      std::string responseText = "Received JSON: " + req.body.stringify();
+      res.send(responseText);
+    }
+  );
+
+  while(true) { }
+  return 0;
+}
 ```
 
----
+### JSON Parsing and Response
+
+The library provides a `JSONValue` class for representing JSON data. You can parse a JSON string into a `JSONValue` using `JSONParser` and also serialize a `JSONValue` back into a string with the `stringify()` method. The `Res` class supports a helper function `json()` to send JSON responses with appropriate headers.
+
+Example sending a JSON response:
+
+```cpp
+#include "response.h"
+#include "json.h"
+
+void sendJsonResponse(Res &res) {
+  // Create a JSON object
+  JSONValue::Object obj;
+  obj["message"] = JSONValue("Hello, JSON!");
+  JSONValue jsonResponse(obj);
+  
+  // Send JSON response
+  res.json(jsonResponse)->status(200);
+}
+```
 
 ## API Reference
 
-### `HttpServer` Class
+### HttpServer Class
 
-- **initServer(int, int, int, int)**: Initializes and starts the server.
+The `HttpServer` class is the core of the library and manages server initialization, routing, and request handling.
 
-- **use(std::function<void(Req&, Res&, long long&)>)**: Registers global middleware.
+- **`int initServer(int addressFamily, int type, int protocol, int port)`**  
+  Initializes the server, binds to the specified port, and starts listening for client connections.
 
-  - To move control to next middleware increment next variable by 1
+- **`void use(std::function<void(Req&, Res&, long long&)> middleware)`**  
+  Adds a global middleware function that is executed for every incoming request.
 
-    ```cpp
-    next++;
-    ```
+- **Routing Methods:**  
+  - **`void Get(const std::string path, const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares, std::function<void(Req&, Res&)> handler)`**
+  - **`void Post(...)`**
+  - **`void Put(...)`**
+  - **`void Patch(...)`**
+  - **`void Delete(...)`**  
+  Registers a route with its associated middleware and handler.
 
-  - If you want to skip a middleware you can do so by appropriately increasing next variable.
+### Request (Req) Class
 
-    ```cpp
-    next += 2; // To skip the next middleware and jump to middleware just after next middleware
-    ```
+The `Req` class represents an incoming HTTP request. It contains:
 
-  - In order to stop the flow of middleware and return the response object then set next variable to a negative value;
+- **`std::string method`**: HTTP method (e.g., GET, POST)
+- **`std::string path`**: Requested URL path
+- **`std::string protocol`**: HTTP protocol version (default "HTTP/1.1")
+- **`std::string payload`**: Request body data
+- **`std::unordered_map<std::string, std::string> queryParameters`**: Parsed query parameters from the URL
+- **`std::unordered_map<std::string, std::string> headers`**: HTTP headers
+- **`JSONValue body`**: Parsed JSON body (populated by JSON middleware)
 
-    ```cpp
-    next = -1; // stops control fow of middleware and returns response object after that middleware to the sender (could be any negative value)
-    ```
+### Response (Res) Class
 
-- **Get, Post, Put, Patch, Delete**: Define routes for various HTTP methods.
+The `Res` class is used to build and send an HTTP response. It offers the following methods:
 
-### `Req` Class
+- **`Res* status(int statusCode)`**: Sets the HTTP status code.
+- **`Res* json(const JSONValue &j)`**: Serializes a JSONValue and sets the appropriate headers for a JSON response.
+- **`Res* send(const std::string data)`**: Sets the response payload for plain text responses.
+- **`Res* setHeader(const std::string key, const std::string value)`**: Sets a custom header in the response.
 
-- **method**: The HTTP method (e.g., "GET", "POST").
-- **path**: The URL path.
-- **headers**: HTTP headers.
-- **payload**: Request body.
+### JSON Handling
 
-### `Res` Class
+- **`JSONValue` Class**  
+  Represents a JSON value and supports types: null, bool, double, string, array, and object.  
+  - **`std::string stringify() const`**: Converts the JSONValue to a JSON-formatted string.
 
-- **status(int)**: Sets HTTP status code.
-- **json(const JSONValue&)**: Sends a JSON response.
-- **send(const std::string&)**: Sends a plain text response.
-- **setHeader(const std::string&, const std::string&)**: Adds headers to the response.
+- **`JSONParser` Class**  
+  Parses a JSON-formatted string into a `JSONValue`. Key parsing methods include:
+  - **`parseString()`**
+  - **`parseNumber()`**
+  - **`parseObject()`**
+  - **`parseArray()`**
+  - **`parseBoolean()`**
+  - **`parseNull()`**  
+  Use the `parse()` method to parse an entire JSON string.
 
----
+### Utilities
 
-## JSON Parser
+The library provides helper functions defined in `utils.h`:
 
-### Parsing JSON Strings
-
-```cpp
-std::string jsonStr = R"({"name": "John", "age": 30, "isAdmin": true})";
-JSONParser parser(jsonStr);
-JSONValue jsonValue = parser.parse();
-```
-
-### Creating JSON Objects
-
-```cpp
-JSONValue::Object obj = {
-    {"name", "Alice"},
-    {"age", 25.0},
-    {"hobbies", JSONValue::Array{"coding", "reading"}}
-};
-JSONValue json(obj);
-std::cout << json.stringify() << std::endl;
-```
-
----
-
-## Pre Defined Middlewares
-
-### JsonBodyParser
-
-- **Syntax** :
-
- ```cpp
- JsonBodyParser(Req &req, Res &res, long long &next);
- ```
-
-- Parses the json body of req object present in ```req.payload``` and stores it in ```req.body``` field as JSONValue object.
-
-### CMake Configuration
-
-The `CMakeLists.txt` file is configured to:
-
-- Build the library from the private `src/` files.
-- Install only the public headers from the `include/` directory.
-- Export a `BoltppConfig.cmake` file for use with `find_package()`.
+- **`std::string trim(const std::string str)`**: Removes leading and trailing whitespace.
+- **`std::vector<std::string> split(const std::string str, const char delim)`**: Splits a string by a specified delimiter.
