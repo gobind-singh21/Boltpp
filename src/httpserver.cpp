@@ -289,9 +289,8 @@ void HttpServer::workerThread() {
               if(i >= 0)
                 allowed[key].handler(req, res);
             }
-            req.~Req();
             std::string httpResponse = makeHttpResponse(res);
-            res.~Res();
+            // res.~Res();
             ioData->wsabuff.buf = ioData->buffer;
             ioData->wsabuff.len = httpResponse.size();
             memcpy(ioData->buffer, httpResponse.c_str(), httpResponse.size());
@@ -301,13 +300,15 @@ void HttpServer::workerThread() {
               size_t pos = req.headers["Connection"].find("keep-alive");
               if(pos == std::string::npos) {
                 if(req.headers["Connection"] == "close")
-                  closesocket(ioData->socket);
+                closesocket(ioData->socket);
               } else {
                 // TODO : implement keep alive header functionality
+                // TODO : Fix segmentation fault error
               }
             } else {
               closesocket(ioData->socket);
             }
+            // req.~Req();
           }
         } else {
           ioData->receiving = true;

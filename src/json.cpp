@@ -44,9 +44,9 @@ std::string JSONValue::stringify() const {
   return output;
 }
 
-inline void JSONValue::clear() {
-  value = std::variant<std::nullptr_t, bool, double, std::string, Array, Object>();
-}
+// inline void JSONValue::clear() {
+//   value = std::variant<std::nullptr_t, bool, double, std::string, Array, Object>();
+// }
 
 JSONValue JSONParser::parseBoolean() {
   if(pos <= size - 5 && input[pos] == 'f' && input[pos + 1] == 'a' && input[pos + 2] == 'l' && input[pos + 3] == 's' && input[pos + 4] == 'e') {
@@ -267,7 +267,7 @@ JSONValue JSONParser::parse() {
     throw std::runtime_error("Invalid JSON string value");
 }
 
-inline void JSONParser::clear() {
-  pos = size = 0;
-  input.~basic_string();
-}
+// inline void JSONParser::clear() {
+//   pos = size = 0;
+//   input.~basic_string();
+// }
