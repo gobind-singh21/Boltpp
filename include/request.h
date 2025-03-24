@@ -24,4 +24,13 @@ public:
   std::unordered_map<std::string, std::string> queryParameters;
   std::unordered_map<std::string, std::string> headers;
   JSONValue body;
+
+  ~Req() {
+    method.~basic_string();
+    path.~basic_string();
+    protocol.~basic_string();
+    payload.~basic_string();
+    queryParameters.clear();
+    headers.clear();
+  }
 };

@@ -289,7 +289,9 @@ void HttpServer::workerThread() {
               if(i >= 0)
                 allowed[key].handler(req, res);
             }
+            req.~Req();
             std::string httpResponse = makeHttpResponse(res);
+            res.~Res();
             ioData->wsabuff.buf = ioData->buffer;
             ioData->wsabuff.len = httpResponse.size();
             memcpy(ioData->buffer, httpResponse.c_str(), httpResponse.size());
@@ -401,7 +403,7 @@ int HttpServer::initServer(int addressFamily, int type, int protocol, int port) 
     throw std::runtime_error("CreateIoCompletionPort failed");
   }
 
-  for(int i = 0; i < NUM_THREADS; i++) {
+  for(int i = 0; i < MAX_THREADS; i++) {
     workerThreads.emplace_back(&HttpServer::workerThread, this);
   }
 

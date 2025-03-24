@@ -22,7 +22,11 @@ public:
   JSONValue(const Object o) : value(o) {}
   JSONValue(const JSONValue &json) : value(json.value) {}
 
+  void clear();
+
   std::string stringify() const;
+
+  ~JSONValue() { this->clear(); }
 };
 
 class JSONParser {
@@ -55,4 +59,11 @@ public:
   inline void setJsonString(const std::string &jsonString) { input = jsonString; pos = 0; size = jsonString.length(); }
 
   JSONValue parse();
+
+  inline void clear();
+
+  ~JSONParser() {
+    pos = size = 0;
+    input.~basic_string();
+  }
 };

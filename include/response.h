@@ -25,4 +25,10 @@ public:
   Res* send(const std::string data);
 
   Res* setHeader(const std::string key, const std::string value);
+
+  ~Res() {
+    payload.~basic_string();
+    protocol.~basic_string();
+    headers.clear();
+  }
 };

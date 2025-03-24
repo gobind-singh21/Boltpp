@@ -34,7 +34,7 @@ class HttpServer {
   std::vector<std::function<void(Req&, Res&, long long&)>> globalMiddlewares;
 
   static const int BUFFER_SIZE = 10240;
-  static const int NUM_THREADS = 4;
+  unsigned int MAX_THREADS = 4;
   size_t MAX_HEADER_SIZE = 8192;
 
   struct PerIoData {
@@ -60,10 +60,15 @@ class HttpServer {
   void workerThread();
 
 public:
-  
-  void serverListen(const SOCKET &serverSocket);
+
   HttpServer() : serverSocket(INVALID_SOCKET) {}
   HttpServer(const SOCKET s) : serverSocket(s) {}
+
+  inline void setMaxHeaderSize(size_t maxHeaderSize) { MAX_HEADER_SIZE = maxHeaderSize; }
+
+  inline void setMaxThreads(unsigned int threads) { MAX_THREADS = threads; }
+
+  void serverListen(const SOCKET &serverSocket);
   
   int initServer(int addressFamily, int type, int protocol, int port);
 
@@ -90,8 +95,6 @@ public:
   void Delete(const std::string path,
               const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares,
               std::function<void(Req&, Res&)> handler);
-
-  void setMaxHeaderSize(size_t maxHeaderSize) { MAX_HEADER_SIZE = maxHeaderSize; }
 
   ~HttpServer() {
     closesocket(serverSocket);
