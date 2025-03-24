@@ -145,7 +145,7 @@ Example using a JSON body parser middleware:
 
 int main() {
   HttpServer server;
-  server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 8080);
+  SOCKET serverSocket = server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 8080);
 
   // Apply global middleware to parse JSON bodies
   server.use(JsonBodyParser);
@@ -158,7 +158,7 @@ int main() {
     }
   );
 
-  server.serverListen(/*server socket*/);
+  server.serverListen(serverSocket);
   
   getchar();
   return 0;
