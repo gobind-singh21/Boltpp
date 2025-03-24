@@ -19,7 +19,7 @@ inline auto JsonBodyParser = [](Req &req, Res &res, long long &next) {
 
 inline auto UrlencodedBodyParser = [](Req &req, Res &res, long long &next) {
   if(req.headers["Content-Type"].find("application/x-www-form-urlencoded") != std::string::npos) {
-    auto inline urlEncodingCharacter = [](const std::string sequence) {
+    auto urlEncodingCharacter = [](const std::string sequence) {
       if(sequence[0] != '%' && sequence.length() != 3)
         return '\0';
       if(sequence.compare("%20") == 0)

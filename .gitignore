@@ -1,6 +1,6 @@
 .vscode/
 build/
-src/
+# src/
 server.cpp
 test.cpp
 *.exe

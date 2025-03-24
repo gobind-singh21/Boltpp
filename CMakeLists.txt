@@ -10,6 +10,7 @@ target_sources(Boltpp PRIVATE
   src/json.cpp
   src/httpserver.cpp
   src/response.cpp
+  src/utils.cpp
 )
 
 target_include_directories(Boltpp PUBLIC

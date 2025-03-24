@@ -4,6 +4,7 @@
 #include <functional>
 #include <vector>
 #include <unordered_map>
+#include <future>
 
 #include "request.h"
 #include "response.h"
@@ -26,9 +27,23 @@ class HttpServer {
     std::function<void(Req&, Res&)> handler;
   };
 
+  HANDLE iocp;
+  std::vector<std::thread> workerThreads;
   std::unordered_map<SOCKET, std::string> socketBuffers;
   std::unordered_map<std::string, Route> allowed;
   std::vector<std::function<void(Req&, Res&, long long&)>> globalMiddlewares;
+
+  static const int BUFFER_SIZE = 10240;
+  static const int NUM_THREADS = 4;
+  size_t MAX_HEADER_SIZE = 8192;
+
+  struct PerIoData {
+    OVERLAPPED overlapped;
+    WSABUF wsabuff;
+    char buffer[BUFFER_SIZE];
+    SOCKET socket;
+    bool receiving;
+  };
 
   static std::string getStatusCodeWord(const int statusCode);
 
@@ -42,14 +57,16 @@ class HttpServer {
   
   static Req parseHttpRequest(const std::string &request, const SOCKET &clientSocket);
 
+  void workerThread();
+
   void handleClientRequest(const SOCKET &clientSocket);
 
-  void serverListen(const SOCKET &serverSocket);
-
 public:
+  
+  void serverListen(const SOCKET &serverSocket);
   HttpServer() : serverSocket(INVALID_SOCKET) {}
   HttpServer(const SOCKET s) : serverSocket(s) {}
-
+  
   int initServer(int addressFamily, int type, int protocol, int port);
 
   inline void use(std::function<void(Req&, Res&, long long&)> middleware) {
@@ -75,6 +92,8 @@ public:
   void Delete(const std::string path,
               const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares,
               std::function<void(Req&, Res&)> handler);
+
+  void setMaxHeaderSize(size_t maxHeaderSize) { MAX_HEADER_SIZE = maxHeaderSize; }
 
   ~HttpServer() {
     closesocket(serverSocket);
