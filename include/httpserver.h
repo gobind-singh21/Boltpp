@@ -59,8 +59,6 @@ class HttpServer {
 
   void workerThread();
 
-  void handleClientRequest(const SOCKET &clientSocket);
-
 public:
   
   void serverListen(const SOCKET &serverSocket);
