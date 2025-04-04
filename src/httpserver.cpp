@@ -237,36 +237,79 @@ Req HttpServer::parseHttpRequest(const std::string &request, const SOCKET &clien
 void HttpServer::workerThread() {
   while(true) {
     DWORD bytesTransfered;
-    ULONG_PTR completeionKey;
+    ULONG_PTR completionKey;
     OVERLAPPED* overlapped;
-    BOOL result = GetQueuedCompletionStatus(iocp, &bytesTransfered, &completeionKey, &overlapped, INFINITE);
+    BOOL result = GetQueuedCompletionStatus(iocp, &bytesTransfered, &completionKey, &overlapped, INFINITE);
     PerIoData* ioData = reinterpret_cast<PerIoData*>(overlapped);
     if(!result || bytesTransfered == 0) {
       closesocket(ioData->socket);
+      {
+        std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
+        socketBuffers.erase(ioData->socket);
+      }
       delete ioData;
       continue;
     }
     if(ioData->receiving) {
-      std::string data(ioData->buffer, bytesTransfered);
-      socketBuffers[ioData->socket].append(data);
-      size_t headerEnd = socketBuffers[ioData->socket].find("\r\n\r\n");
+      {
+        std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
+        socketBuffers[ioData->socket].buffer.append(ioData->buffer, bytesTransfered);
+      }
+      bool shouldProcess = false;
+      std::string localBuffer;
+      {
+        std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
+        if(!socketBuffers[ioData->socket].processing && socketBuffers[ioData->socket].buffer.find("\r\n\r\n") != std::string::npos) {
+          localBuffer = socketBuffers[ioData->socket].buffer;
+          socketBuffers[ioData->socket].processing = true;
+          shouldProcess = true;
+        }
+      }
+
+      if(!shouldProcess) {
+        DWORD flags = 0;
+        WSARecv(ioData->socket, &ioData->wsabuff, 1, nullptr, &flags, &ioData->overlapped, nullptr);
+        continue;
+      }
+
+      size_t headerEnd = localBuffer.find("\r\n\r\n"), headerSize = localBuffer.length();
+
+      // {
+      //   std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
+      //   socketBuffers[ioData->socket].buffer.append(data);
+      // }
+      // size_t headerEnd;
+      // {
+      //   std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
+      //   headerEnd = socketBuffers[ioData->socket].buffer.find("\r\n\r\n");
+      // }
+      // size_t headerSize;
+      // {
+      //   std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
+      //   headerSize = socketBuffers[ioData->socket].buffer.size();
+      // }
       if(headerEnd != std::string::npos) {
         int expectedContentLength = 0;
-        size_t pos = socketBuffers[ioData->socket].find("Content-Length");
+        size_t pos = localBuffer.find("Content-Length");
+        // {
+        //   std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
+        //   pos = socketBuffers[ioData->socket].buffer.find("Content-Length");
+        // }
         if(pos != std::string::npos) {
           pos += strlen("Content-Length:");
-          while(pos < headerEnd && isspace(socketBuffers[ioData->socket][pos])) { pos++; }
-          size_t endPos = socketBuffers[ioData->socket].find("\r\n", pos);
+          while(pos < headerEnd && isspace(localBuffer[pos])) { pos++; }
+          size_t endPos = localBuffer.find("\r\n", pos);
           try {
-            expectedContentLength = std::stoi(socketBuffers[ioData->socket].substr(pos, endPos - pos));
+            expectedContentLength = std::stoi(localBuffer.substr(pos, endPos - pos));
           } catch (...) {
             expectedContentLength = 0;
           }
         }
-        size_t receivedBodyLength = socketBuffers[ioData->socket].size() - (headerEnd + 4);
+        size_t receivedBodyLength = localBuffer.size() - (headerEnd + 4);
         if(expectedContentLength == 0 || receivedBodyLength >= (size_t)expectedContentLength) {
-          Req req = parseHttpRequest(socketBuffers[ioData->socket], ioData->socket);
+          Req req = parseHttpRequest(localBuffer, ioData->socket);
           socketBuffers.erase(ioData->socket);
+          localBuffer.clear();
           Res res;
           res.setProtocol("HTTP/1.1");
           std::string key = req.method + "::" + req.path;
@@ -296,17 +339,33 @@ void HttpServer::workerThread() {
             memcpy(ioData->buffer, httpResponse.c_str(), httpResponse.size());
             ioData->receiving = false;
             WSASend(ioData->socket, &ioData->wsabuff, 1, nullptr, 0, &ioData->overlapped, nullptr);
+
+            {
+              std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
+              socketBuffers[ioData->socket].buffer.clear();
+              socketBuffers[ioData->socket].processing = false;
+            }
+
             if(req.headers.find("Connection") != req.headers.end()) {
               size_t pos = req.headers["Connection"].find("keep-alive");
               if(pos == std::string::npos) {
-                if(req.headers["Connection"] == "close")
-                closesocket(ioData->socket);
+                if(req.headers["Connection"] == "close") {
+                  {
+                    std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
+                    closesocket(ioData->socket);
+                    socketBuffers.erase(ioData->socket);
+                  }
+                }
               } else {
                 // TODO : implement keep alive header functionality
                 // TODO : Fix segmentation fault error
               }
             } else {
-              closesocket(ioData->socket);
+              {
+                std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
+                closesocket(ioData->socket);
+                socketBuffers.erase(ioData->socket);
+              }
             }
             // req.~Req();
           }
@@ -316,7 +375,7 @@ void HttpServer::workerThread() {
           WSARecv(ioData->socket, &ioData->wsabuff, 1, nullptr, &flags, &ioData->overlapped, nullptr);
           continue;
         }
-      } else if(socketBuffers[ioData->socket].size() < MAX_HEADER_SIZE) {
+      } else if(headerSize < MAX_HEADER_SIZE) {
         ioData->receiving = true;
         DWORD flags = 0;
         WSARecv(ioData->socket, &ioData->wsabuff, 1, nullptr, &flags, &ioData->overlapped, nullptr);
