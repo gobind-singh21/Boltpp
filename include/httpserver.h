@@ -105,11 +105,8 @@ public:
   ~HttpServer() {
     workerThreads.clear();
     closesocket(serverSocket);
-    for(std::pair<const SOCKET, SocketBuffer> &it : socketBuffers) {
-      it.second.buffer.clear();
-      it.second.processing = false;
+    for(std::pair<const SOCKET, SocketBuffer> &it : socketBuffers)
       closesocket(it.first);
-    }
     socketBuffers.clear();
     globalMiddlewares.clear();
     allowed.clear();
