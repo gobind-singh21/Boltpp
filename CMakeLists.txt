@@ -22,6 +22,10 @@ if(WIN32)
   target_link_libraries(Boltpp ws2_32)
 endif()
 
+if(UNIX)
+  target_link_libraries(Boltpp pthread)
+endif()
+
 install(TARGETS Boltpp
   EXPORT BoltppTargets
   ARCHIVE DESTINATION lib
