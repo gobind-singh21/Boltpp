@@ -6,15 +6,15 @@ Boltpp is a high-performance, expressive, and lightweight C++ HTTP server librar
 
 ## 📚 Table of Contents 🧭🗂️📝
 
-- [Features](features)
-- [Directory Structure](directory-structure)
-- [Installation](installation)
-- [Getting Started](getting-started)
-- [API Documentation](api-documentation)
-- [JSONValue Utilities](jsonvalue-utilities)
-- [Advantages over Other Frameworks](advantages-over-other-frameworks)
-- [Limitations (To Be Improved)](limitations-to-be-improved)
-- [Contact](contact)
+- [Features](-features-)
+- [Directory Structure](-directory-structure-)
+- [Installation](-installation-)
+- [Getting Started](-getting-started-)
+- [API Documentation](-api-documentation-)
+- [JSONValue Utilities](-jsonvalue-utilities-)
+- [Advantages over Other Frameworks](-advantages-over-other-frameworks-)
+- [Limitations (To Be Improved)](-limitations-to-be-improved-)
+- [Contact](-contact-)
 
 ---
 
