@@ -6,32 +6,29 @@ Boltpp is a high-performance, expressive, and lightweight C++ HTTP server librar
 
 ## 📚 Table of Contents 🧭🗂️📝
 
-- [Features](-features-)
-- [Directory Structure](-directory-structure-)
-- [Installation](-installation-)
-- [Getting Started](-getting-started-)
-- [API Documentation](-api-documentation-)
-- [JSONValue Utilities](-jsonvalue-utilities-)
-- [Advantages over Other Frameworks](-advantages-over-other-frameworks-)
-- [Limitations (To Be Improved)](-limitations-to-be-improved-)
-- [Contact](-contact-)
+- [Boltpp – High-Performance C++ HTTP Server Library 🚀🚀🚀](#boltpp--high-performance-c-http-server-library-)
+  - [📚 Table of Contents 🧭🗂️📝](#-table-of-contents-️)
+  - [🚀 Features 💡💥📌](#-features-)
+  - [📂 Directory Structure 🗂️📁🔧](#-directory-structure-️)
+  - [💪 Installation 🧰📦⚙️](#-installation-️)
+    - [Step 1: Build and Install](#step-1-build-and-install)
+    - [Step 2: Use in Your Project](#step-2-use-in-your-project)
+  - [🏗️ Getting Started 🧪🗒️🛫](#️-getting-started-️)
+    - [Example](#example)
+  - [📜 API Documentation 📘📚🧾](#-api-documentation-)
+    - [HttpServer Methods](#httpserver-methods)
+    - [Middleware](#middleware)
+    - [Req (Request) 📨📥🔍](#req-request-)
+    - [Res (Response) 📤🧞✅](#res-response-)
+  - [🪧 JSONValue Utilities 🧠📄🔎](#-jsonvalue-utilities-)
+    - [Construct JSON](#construct-json)
+    - [Access JSON Fields](#access-json-fields)
+    - [Stringify JSON](#stringify-json)
+  - [🌟 Advantages over Other Frameworks 🏋️🧰💯](#-advantages-over-other-frameworks-️)
+  - [🚫 Limitations (To Be Improved) 🗱️⚠️🔧](#-limitations-to-be-improved-️️)
+  - [📧 Contact 💬👤📨](#-contact-)
 
 ---
-
-## 🚀 Features 💡💥📌
-
-- 🔹 **Simple and Expressive API** similar to Express.js
-- 🔹 **Asynchronous I/O** via IOCP (Windows)
-- 🔹 **Routing for all HTTP methods** (GET, POST, etc.)
-- 🔹 **Middleware support** with next-based chaining
-- 🔹 **Built-in JSON and URL-Encoded Parsers**
-- 🔹 **Keep-alive and persistent connections**
-- 🔹 **Multithreaded request handling** via a configurable thread pool
-- 🔹 **No external dependencies** (pure C++ with Winsock2)
-
----
-
-## 📂 Directory Structure 🗂️📁🔧
 
 ## 🚀 Features 💡💥📌
 
@@ -115,11 +112,7 @@ int main() {
   server.Get("/user", {}, [](Req &req, Res &res) {
     JSONValue::Object user{{"name", "John"}, {"details", JSONValue::Object{
       {"age", 30.0},
-<<<<<<< HEAD
       {"hobbies", JSONValue::Array{"coding", "gaming"}
-=======
-      {"hobbies", JSONValue::Array{"coding", "gaming"}}
->>>>>>> 19be11b534d516112cc03bc4841e60232e3729b5
     }}};
     res.json(JSONValue(user))->status(200);
   });
@@ -208,7 +201,6 @@ std::string str = user.stringify();
 
 ## 🌟 Advantages over Other Frameworks 🏋️🧰💯
 
-<<<<<<< HEAD
 | Feature        | Boltpp   | Crow         | Drogon       |
 | -------------- | -------- | ------------ | ------------ |
 | Language       | C++17    | C++11        | C++14+       |
@@ -220,19 +212,6 @@ std::string str = user.stringify();
 | Simplicity     | ⭐⭐⭐⭐⭐    | ⭐⭐⭐          | ⭐⭐⭐⭐         |
 | Dependencies   | None     | Boost (opt)  | libpqxx etc. |
 | Compile Time   | Fast     | Medium       | Heavy        |
-=======
-| Feature            | Boltpp     | Crow       | Drogon    |
-|--------------------|------------|------------|-----------|
-| Language           | C++17      | C++11      | C++14+    |
-| Routing            | Yes        | Yes        | Yes       |
-| Middleware         | Yes        | Yes        | Yes       |
-| JSON Parsing       | Built-in   | External   | Built-in  |
-| Multithreading     | Yes        | Yes        | Yes       |
-| IO Model           | IOCP       | epoll/kqueue | epoll    |
-| Simplicity         | ⭐⭐⭐⭐⭐ | ⭐⭐⭐     | ⭐⭐⭐⭐    |
-| Dependencies       | None       | Boost (opt) | libpqxx etc. |
-| Compile Time       | Fast       | Medium     | Heavy     |
->>>>>>> 19be11b534d516112cc03bc4841e60232e3729b5
 
 ---
 
@@ -249,10 +228,5 @@ std::string str = user.stringify();
 
 For suggestions, issues, or collaboration:
 
-<<<<<<< HEAD
-- 🔹 Email: [[yourname@example.com](mailto\:yourname@example.com)]
-- 🔹 LinkedIn: [linkedin.com/in/yourname]
-=======
 - 🔹 Email: [sgobind577@gmail.com]
 - 🔹 LinkedIn: [https://www.linkedin.com/in/gobind-singh-maan-2548a5157/]
->>>>>>> 19be11b534d516112cc03bc4841e60232e3729b5
