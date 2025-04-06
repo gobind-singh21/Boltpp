@@ -35,12 +35,12 @@ class HttpServer {
 
   HANDLE iocp;
   std::vector<std::thread> workerThreads;
-  std::unordered_map<SOCKET, SocketBuffer> socketBuffers;
+  static thread_local std::unordered_map<SOCKET, SocketBuffer> socketBuffers;
   std::unordered_map<std::string, Route> allowed;
   std::vector<std::function<void(Req&, Res&, long long&)>> globalMiddlewares;
 
   static const int BUFFER_SIZE = 10240;
-  unsigned int MAX_THREADS = 4;
+  unsigned int MAX_THREADS = 1;
   size_t MAX_HEADER_SIZE = 8192;
 
   struct PerIoData {

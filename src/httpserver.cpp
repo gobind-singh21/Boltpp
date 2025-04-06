@@ -6,6 +6,8 @@
 #include "utils.h"
 #include "httpserver.h"
 
+thread_local std::unordered_map<SOCKET, HttpServer::SocketBuffer> HttpServer::socketBuffers;
+
 std::string HttpServer::getStatusCodeWord(const int statusCode) {
   switch(statusCode) {
     // 1xx Informational
@@ -274,27 +276,9 @@ void HttpServer::workerThread() {
 
       size_t headerEnd = localBuffer.find("\r\n\r\n"), headerSize = localBuffer.length();
 
-      // {
-      //   std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
-      //   socketBuffers[ioData->socket].buffer.append(data);
-      // }
-      // size_t headerEnd;
-      // {
-      //   std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
-      //   headerEnd = socketBuffers[ioData->socket].buffer.find("\r\n\r\n");
-      // }
-      // size_t headerSize;
-      // {
-      //   std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
-      //   headerSize = socketBuffers[ioData->socket].buffer.size();
-      // }
       if(headerEnd != std::string::npos) {
         int expectedContentLength = 0;
         size_t pos = localBuffer.find("Content-Length");
-        // {
-        //   std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
-        //   pos = socketBuffers[ioData->socket].buffer.find("Content-Length");
-        // }
         if(pos != std::string::npos) {
           pos += strlen("Content-Length:");
           while(pos < headerEnd && isspace(localBuffer[pos])) { pos++; }
@@ -308,7 +292,10 @@ void HttpServer::workerThread() {
         size_t receivedBodyLength = localBuffer.size() - (headerEnd + 4);
         if(expectedContentLength == 0 || receivedBodyLength >= (size_t)expectedContentLength) {
           Req req = parseHttpRequest(localBuffer, ioData->socket);
-          socketBuffers.erase(ioData->socket);
+          {
+            std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
+            socketBuffers.erase(ioData->socket);
+          }
           localBuffer.clear();
           Res res;
           res.setProtocol("HTTP/1.1");
@@ -333,41 +320,22 @@ void HttpServer::workerThread() {
                 allowed[key].handler(req, res);
             }
             std::string httpResponse = makeHttpResponse(res);
-            // res.~Res();
             ioData->wsabuff.buf = ioData->buffer;
             ioData->wsabuff.len = httpResponse.size();
             memcpy(ioData->buffer, httpResponse.c_str(), httpResponse.size());
             ioData->receiving = false;
             WSASend(ioData->socket, &ioData->wsabuff, 1, nullptr, 0, &ioData->overlapped, nullptr);
 
-            {
-              std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
-              socketBuffers[ioData->socket].buffer.clear();
-              socketBuffers[ioData->socket].processing = false;
-            }
-
             if(req.headers.find("Connection") != req.headers.end()) {
               size_t pos = req.headers["Connection"].find("keep-alive");
               if(pos == std::string::npos) {
-                if(req.headers["Connection"] == "close") {
-                  {
-                    std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
-                    closesocket(ioData->socket);
-                    socketBuffers.erase(ioData->socket);
-                  }
-                }
+                if(req.headers["Connection"] == "close")
+                  closesocket(ioData->socket);
               } else {
                 // TODO : implement keep alive header functionality
-                // TODO : Fix segmentation fault error
               }
-            } else {
-              {
-                std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
-                closesocket(ioData->socket);
-                socketBuffers.erase(ioData->socket);
-              }
-            }
-            // req.~Req();
+            } else
+              closesocket(ioData->socket);
           }
         } else {
           ioData->receiving = true;
@@ -407,7 +375,9 @@ void HttpServer::serverListen(const SOCKET &serverSocket) {
     SOCKET clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &addrlen);
     if(clientSocket == INVALID_SOCKET)
       continue;
-    CreateIoCompletionPort((HANDLE)clientSocket, iocp, (ULONG_PTR)clientSocket, 0);
+    HANDLE result = CreateIoCompletionPort((HANDLE)clientSocket, iocp, (ULONG_PTR)clientSocket, 0);
+    if(result == INVALID_HANDLE_VALUE)
+      continue;
     PerIoData* ioData = new PerIoData();
     ioData->socket = clientSocket;
     ioData->wsabuff.buf = ioData->buffer;
