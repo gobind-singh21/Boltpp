@@ -198,12 +198,6 @@ std::string str = user.stringify();
 
 ---
 
-## 🚤 License 📜🛡️💼
-
-MIT License © 2025 Your Name
-
----
-
 ## 📧 Contact 💬👤📨
 
 For suggestions, issues, or collaboration:
