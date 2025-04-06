@@ -25,7 +25,9 @@ int main() {
     res.json(userJson)->status(201);
   });
 
-  server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 9000);
+  SOCKET serverSocket = server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 9000);
+
+  server.serverListen(serverSocket);
 
   getchar();
   return 0;
