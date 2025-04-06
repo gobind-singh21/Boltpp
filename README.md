@@ -209,4 +209,4 @@ MIT License © 2025 Your Name
 For suggestions, issues, or collaboration:
 
 - 🔹 Email: [sgobind577@gmail.com]
-- 🔹 LinkedIn: [linkedin.com/in/yourname]
+- 🔹 LinkedIn: [https://www.linkedin.com/in/gobind-singh-maan-2548a5157/]
