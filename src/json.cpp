@@ -1,7 +1,13 @@
 #include <stdexcept>
-
 #include "json.h"
 
+/**
+ * @brief Converts the JSONValue into a JSON-formatted string.
+ *
+ * Uses std::visit to handle all variant types.
+ *
+ * @return std::string The JSON string.
+ */
 std::string JSONValue::stringify() const {
   std::string output = "";
   output.reserve(1000);
@@ -44,10 +50,16 @@ std::string JSONValue::stringify() const {
   return output;
 }
 
+// The clear method is commented out as it is currently not in use.
 // inline void JSONValue::clear() {
 //   value = std::variant<std::nullptr_t, bool, double, std::string, Array, Object>();
 // }
 
+/**
+ * @brief Parses a JSON boolean value from the input.
+ *
+ * @return JSONValue The parsed boolean.
+ */
 JSONValue JSONParser::parseBoolean() {
   if(pos <= size - 5 && input[pos] == 'f' && input[pos + 1] == 'a' && input[pos + 2] == 'l' && input[pos + 3] == 's' && input[pos + 4] == 'e') {
     for(int i = 0; i < 5; i++)
@@ -60,16 +72,26 @@ JSONValue JSONParser::parseBoolean() {
     throw std::runtime_error("Unexpected value caught, expected boolean");
 }
 
+/**
+ * @brief Parses a JSON null value.
+ *
+ * @return JSONValue The parsed null value.
+ */
 JSONValue JSONParser::parseNull() {
   if(pos <= size - 4 && get() == 'n' && get() == 'u' && get() == 'l' && get() == 'l')
     return JSONValue(nullptr);
   else
-    throw std::runtime_error("Unexpected value caught, expected \'null\'");
+    throw std::runtime_error("Unexpected value caught, expected 'null'");
 }
 
+/**
+ * @brief Parses a JSON string value.
+ *
+ * @return JSONValue The parsed string.
+ */
 JSONValue JSONParser::parseString() {
   if(get() != '"')
-    throw std::runtime_error("Expected '\"' at begining of the string");
+    throw std::runtime_error("Expected '\"' at beginning of the string");
   std::string output;
   output.reserve(1000);
   while(true) {
@@ -100,6 +122,11 @@ JSONValue JSONParser::parseString() {
   return JSONValue(output);
 }
 
+/**
+ * @brief Parses a JSON number.
+ *
+ * @return JSONValue The parsed number.
+ */
 JSONValue JSONParser::parseNumber() {
   std::string number;
   number.reserve(310);
@@ -123,9 +150,14 @@ JSONValue JSONParser::parseNumber() {
   return JSONValue(num);
 }
 
+/**
+ * @brief Parses a JSON object.
+ *
+ * @return JSONValue The parsed object.
+ */
 JSONValue JSONParser::parseObject() {
   JSONValue::Object obj;
-  get();
+  get(); // Skip '{'
   skipWhitespaces();
   if(peek() == '}') {
     get();
@@ -185,9 +217,14 @@ JSONValue JSONParser::parseObject() {
   return JSONValue(obj);
 }
 
+/**
+ * @brief Parses a JSON array.
+ *
+ * @return JSONValue The parsed array.
+ */
 JSONValue JSONParser::parseArray() {
   JSONValue::Array arr;
-  get();
+  get(); // Skip '['
   skipWhitespaces();
   if(peek() == ']') {
     get();
@@ -234,6 +271,11 @@ JSONValue JSONParser::parseArray() {
   return JSONValue(arr);
 }
 
+/**
+ * @brief Parses the entire JSON input string.
+ *
+ * @return JSONValue The resulting JSON value.
+ */
 JSONValue JSONParser::parse() {
   skipWhitespaces();
   if(pos >= size || input == "")
@@ -267,6 +309,7 @@ JSONValue JSONParser::parse() {
     throw std::runtime_error("Invalid JSON string value");
 }
 
+// The clear method is commented out as it is not currently required.
 // inline void JSONParser::clear() {
 //   pos = size = 0;
 //   input.~basic_string();

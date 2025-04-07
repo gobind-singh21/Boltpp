@@ -1,5 +1,11 @@
 #include "utils.h"
 
+/**
+ * @brief Trims leading and trailing whitespace characters from the input string.
+ *
+ * @param str The string to be trimmed.
+ * @return std::string The trimmed string.
+ */
 std::string trim(const std::string str) {
   size_t start = str.find_first_not_of(" \t");
   size_t end = str.find_last_not_of(" \t");
@@ -8,6 +14,13 @@ std::string trim(const std::string str) {
   return str.substr(start, end - start + 1);
 }
 
+/**
+ * @brief Splits a string by a given delimiter into a vector of substrings.
+ *
+ * @param str The string to split.
+ * @param delim The delimiter character.
+ * @return std::vector<std::string> The resulting vector of substrings.
+ */
 std::vector<std::string> split(const std::string str, const char delim) {
   size_t length = str.size(), i = 0;
   std::string word;
@@ -21,6 +34,7 @@ std::vector<std::string> split(const std::string str, const char delim) {
     } else {
       word.push_back(c);
     }
+    i++;
   }
   if(word != "")
     res.emplace_back(word);

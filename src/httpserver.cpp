@@ -6,8 +6,15 @@
 #include "utils.h"
 #include "httpserver.h"
 
+// Define the thread-local storage for socket buffers.
 thread_local std::unordered_map<SOCKET, HttpServer::SocketBuffer> HttpServer::socketBuffers;
 
+/**
+ * @brief Returns the textual description for a given HTTP status code.
+ *
+ * @param statusCode The HTTP status code.
+ * @return std::string The corresponding status message.
+ */
 std::string HttpServer::getStatusCodeWord(const int statusCode) {
   switch(statusCode) {
     // 1xx Informational
@@ -81,6 +88,12 @@ std::string HttpServer::getStatusCodeWord(const int statusCode) {
   return "Not Found";
 }
 
+/**
+ * @brief Constructs an HTTP response string from the given Res object.
+ *
+ * @param res The response object.
+ * @return std::string The full HTTP response string.
+ */
 std::string HttpServer::makeHttpResponse(const Res &res) {
   int statusCode = res.getStatusCode();
   std::string response, payload = res.getPayload();
@@ -103,6 +116,12 @@ std::string HttpServer::makeHttpResponse(const Res &res) {
   return response;
 }
 
+/**
+ * @brief Decodes a URL-encoded sequence into its corresponding character.
+ *
+ * @param specialSequence The URL-encoded sequence.
+ * @return char The decoded character or '\0' if invalid.
+ */
 char HttpServer::urlEncodingCharacter(const std::string specialSequence) {
   if(specialSequence[0] != '%' || specialSequence.length() != 3)
     return '\0';
@@ -121,6 +140,11 @@ char HttpServer::urlEncodingCharacter(const std::string specialSequence) {
   return '\0';
 }
 
+/**
+ * @brief Parses query parameters from the URL and stores them in the Req object.
+ *
+ * @param req The request object.
+ */
 void HttpServer::parseQueryParameters(Req &req) {
   size_t pathSize = req.path.length(), lastIndex = pathSize - 1, pos = -1;
   for(size_t i = 0; i < pathSize; i++) {
@@ -159,6 +183,14 @@ void HttpServer::parseQueryParameters(Req &req) {
     req.queryParameters[key] = value;
 }
 
+/**
+ * @brief Sends an error response back to the client.
+ *
+ * Constructs a JSON error message and sends it over the socket.
+ *
+ * @param res The response object containing the error status.
+ * @param clientSocket The client socket.
+ */
 void HttpServer::sendErrorResponse(Res &res, const SOCKET &clientSocket) {
   std::string errorMessage = getStatusCodeWord(res.getStatusCode());
   JSONValue::Object message;
@@ -169,6 +201,13 @@ void HttpServer::sendErrorResponse(Res &res, const SOCKET &clientSocket) {
   send(clientSocket, responseMessage.c_str(), responseMessage.length(), 0);
 }
 
+/**
+ * @brief Parses a raw HTTP request string and returns a Req object.
+ *
+ * @param request The raw HTTP request.
+ * @param clientSocket The client socket.
+ * @return Req The parsed request.
+ */
 Req HttpServer::parseHttpRequest(const std::string &request, const SOCKET &clientSocket) {
   Req req;
   size_t size = request.size(), i = 0, lastIndex = size - 1, thirdLastIndex = size - 4;
@@ -236,6 +275,12 @@ Req HttpServer::parseHttpRequest(const std::string &request, const SOCKET &clien
   return req;
 }
 
+/**
+ * @brief The worker thread function that processes IO completion events.
+ *
+ * Waits for IO events, reads the data from the socket buffers,
+ * parses requests, and dispatches them to the correct route handlers.
+ */
 void HttpServer::workerThread() {
   while(true) {
     DWORD bytesTransfered;
@@ -300,7 +345,7 @@ void HttpServer::workerThread() {
           Res res;
           res.setProtocol("HTTP/1.1");
           std::string key = req.method + "::" + req.path;
-          if(allowed.find(key) == allowed.end()) {
+          if(allowedRoutes.find(key) == allowedRoutes.end()) {
             res.status(404)->send("Not found");
           } else {
             long long i = 0;
@@ -311,13 +356,13 @@ void HttpServer::workerThread() {
             }
             if(i >= 0) {
               i = 0;
-              mwSize = allowed[key].middlewares.size();
+              mwSize = allowedRoutes[key].middlewares.size();
               while(i < mwSize && i >= 0) {
-                allowed[key].middlewares[i](req, res, i);
+                allowedRoutes[key].middlewares[i](req, res, i);
                 i++;
               }
               if(i >= 0)
-                allowed[key].handler(req, res);
+                allowedRoutes[key].handler(req, res);
             }
             std::string httpResponse = makeHttpResponse(res);
             ioData->wsabuff.buf = ioData->buffer;
@@ -352,7 +397,7 @@ void HttpServer::workerThread() {
         socketBuffers.erase(ioData->socket);
         Res res;
         res.setProtocol("HTTP/1.1");
-        res.status(400)->send("Bad Request");
+        res.status(400)->send("Header size exceeded");
         std::string response = makeHttpResponse(res);
         ioData->wsabuff.buf = ioData->buffer;
         ioData->wsabuff.len = response.size();
@@ -368,6 +413,14 @@ void HttpServer::workerThread() {
   }
 }
 
+/**
+ * @brief Accepts incoming client connections and sets up asynchronous IO.
+ *
+ * For each accepted connection, associates the client socket with the IO Completion Port and
+ * starts an asynchronous receive.
+ *
+ * @param serverSocket The server socket.
+ */
 void HttpServer::serverListen(const SOCKET &serverSocket) {
   while(true) {
     sockaddr_in clientAddr;
@@ -388,6 +441,17 @@ void HttpServer::serverListen(const SOCKET &serverSocket) {
   }
 }
 
+/**
+ * @brief Initializes the server socket, binds to the port, and starts listening.
+ *
+ * Also initializes the IO Completion Port and spawns worker threads.
+ *
+ * @param addressFamily The address family (e.g., AF_INET).
+ * @param type The socket type (e.g., SOCK_STREAM).
+ * @param protocol The protocol (e.g., IPPROTO_TCP).
+ * @param port The port number.
+ * @return int The server socket descriptor.
+ */
 int HttpServer::initServer(int addressFamily, int type, int protocol, int port) {
   WSADATA wsadata;
   int result = WSAStartup(MAKEWORD(2, 2), &wsadata);
@@ -440,27 +504,62 @@ int HttpServer::initServer(int addressFamily, int type, int protocol, int port) 
   return initialSocket;
 }
 
+/**
+ * @brief Registers a GET route.
+ *
+ * @param path The URL path.
+ * @param middlewares Vector of middlewares for this route.
+ * @param handler The handler function for the route.
+ */
 void HttpServer::Get(const std::string path, const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares, std::function<void(Req&, Res&)> handler) {
   std::string key = "GET::" + path;
-  allowed[key] = Route(middlewares, handler);
+  allowedRoutes[key] = Route(middlewares, handler);
 }
 
+/**
+ * @brief Registers a POST route.
+ *
+ * @param path The URL path.
+ * @param middlewares Vector of middlewares for this route.
+ * @param handler The handler function for the route.
+ */
 void HttpServer::Post(const std::string path, const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares, std::function<void(Req&, Res&)> handler) {
   std::string key = "POST::" + path;
-  allowed[key] = Route(middlewares, handler);
+  allowedRoutes[key] = Route(middlewares, handler);
 }
 
+/**
+ * @brief Registers a PUT route.
+ *
+ * @param path The URL path.
+ * @param middlewares Vector of middlewares for this route.
+ * @param handler The handler function for the route.
+ */
 void HttpServer::Put(const std::string path, const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares, std::function<void(Req&, Res&)> handler) {
   std::string key = "PUT::" + path;
-  allowed[key] = Route(middlewares, handler);
+  allowedRoutes[key] = Route(middlewares, handler);
 }
 
+/**
+ * @brief Registers a PATCH route.
+ *
+ * @param path The URL path.
+ * @param middlewares Vector of middlewares for this route.
+ * @param handler The handler function for the route.
+ */
 void HttpServer::Patch(const std::string path, const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares, std::function<void(Req&, Res&)> handler) {
   std::string key = "PATCH::" + path;
-  allowed[key] = Route(middlewares, handler);
+  allowedRoutes[key] = Route(middlewares, handler);
 }
 
+/**
+ * @brief Registers a DELETE route.
+ *
+ * @param path The URL path.
+ * @param middlewares Vector of middlewares for this route.
+ * @param handler The handler function for the route.
+ */
 void HttpServer::Delete(const std::string path, const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares, std::function<void(Req&, Res&)> handler) {
   std::string key = "DELETE::" + path;
-  allowed[key] = Route(middlewares, handler);
+  allowedRoutes[key] = Route(middlewares, handler);
 }

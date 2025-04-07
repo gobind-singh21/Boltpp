@@ -22,6 +22,15 @@ int main() {
       {"height", 160.0},
     });
     JSONValue userJson(userInfo);
+
+    if(const JSONValue::Object *obj = std::get_if<JSONValue::Object>(&(userJson.value))) {
+      auto it = obj->find("name");
+      if(it != obj->end()) {
+        if(const std::string *name = std::get_if<std::string>(&it->second.value)) {
+          std::cout << "name: " << *name << std::endl;
+        }
+      }
+    }
     res.json(userJson)->status(201);
   });
 

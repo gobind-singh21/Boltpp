@@ -4,19 +4,31 @@
 
 #include <iostream>
 
+/**
+ * @brief Middleware to parse JSON body.
+ *
+ * Checks if the request contains a JSON payload, parses it using JSONParser,
+ * and assigns the result to req.body. If parsing fails, it sends a 400 Bad Request response.
+ */
 inline auto JsonBodyParser = [](Req &req, Res &res, long long &next) {
   if(req.headers["Content-Type"].find("application/json") != std::string::npos) {
     try {
       req.body = JSONParser(req.payload).parse();
     } catch (const std::exception &e) {
       res.status(400)->send("Bad Request");
-      next = -1;
+      next = -1; // Stop further middleware execution.
       return;
     }
   }
   next++;
 };
 
+/**
+ * @brief Middleware to parse URL-encoded form data.
+ *
+ * Checks if the request has the "application/x-www-form-urlencoded" content type,
+ * decodes the payload, and assigns it to req.body as a JSON object.
+ */
 inline auto UrlencodedBodyParser = [](Req &req, Res &res, long long &next) {
   if(req.headers["Content-Type"].find("application/x-www-form-urlencoded") != std::string::npos) {
     auto urlEncodingCharacter = [](const std::string sequence) {
