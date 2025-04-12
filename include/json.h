@@ -72,6 +72,126 @@ public:
   JSONValue(const JSONValue &json) : value(json.value) {}
 
   /**
+   * @brief Assignment operator from another JSONValue.
+   *
+   * @param json The JSONValue to assign.
+   * @return JSONValue& Reference to the assigned object.
+   */
+  JSONValue& operator=(const JSONValue json);
+
+  /**
+   * @brief Assignment operator for JSON object.
+   *
+   * @param object The object to assign.
+   * @return JSONValue& Reference to the assigned object.
+   */
+  JSONValue& operator=(const JSONValue::Object object);
+
+  /**
+   * @brief Assignment operator for JSON array.
+   *
+   * @param array The array to assign.
+   * @return JSONValue& Reference to the assigned object.
+   */
+  JSONValue& operator=(const JSONValue::Array array);
+
+  /**
+   * @brief Assignment operator for a number.
+   *
+   * @param number The number to assign.
+   * @return JSONValue& Reference to the assigned object.
+   */
+  JSONValue& operator=(const double number);
+
+  /**
+   * @brief Assignment operator for a C-string.
+   *
+   * @param str The string to assign.
+   * @return JSONValue& Reference to the assigned object.
+   */
+  JSONValue& operator=(const char* str);
+
+  /**
+   * @brief Assignment operator for a std::string.
+   *
+   * @param str The string to assign.
+   * @return JSONValue& Reference to the assigned object.
+   */
+  JSONValue& operator=(const std::string str);
+
+  /**
+   * @brief Assignment operator for a boolean value.
+   *
+   * @param boolean The boolean to assign.
+   * @return JSONValue& Reference to the assigned object.
+   */
+  JSONValue& operator=(const bool boolean);
+
+  /**
+   * @brief Assignment operator for null.
+   *
+   * @param null Null value to assign.
+   * @return JSONValue& Reference to the assigned object.
+   */
+  JSONValue& operator=(const std::nullptr_t null);
+
+  /**
+   * @brief Accesses a member of a JSON object using a C-string key.
+   *
+   * @param str Key string.
+   * @return JSONValue& Reference to the value.
+   */
+  JSONValue& operator[](const char* str);
+
+  /**
+   * @brief Accesses a member of a JSON object using a std::string key.
+   *
+   * @param key The key.
+   * @return JSONValue& Reference to the value.
+   */
+  JSONValue& operator[](const std::string key);
+
+  /**
+   * @brief Accesses an element of a JSON array using an integer index.
+   *
+   * @param index The index.
+   * @return JSONValue& Reference to the value.
+   */
+  JSONValue& operator[](const int index);
+
+  /**
+   * @brief Accesses the stored number value.
+   *
+   * @return double& Reference to the double value.
+   * @throws std::runtime_error if the value is not a number.
+   */
+  double& asDouble();
+
+  /**
+   * @brief Accesses the stored string value.
+   *
+   * @return std::string& Reference to the string.
+   * @throws std::runtime_error if the value is not a string.
+   */
+  std::string& asString();
+
+  /**
+   * @brief Accesses the stored boolean value.
+   *
+   * @return bool& Reference to the boolean.
+   * @throws std::runtime_error if the value is not a boolean.
+   */
+  bool& asBool();
+
+  /**
+   * @brief Accesses the stored null value.
+   *
+   * @return std::nullptr_t& Reference to null.
+   * @throws std::runtime_error if the value is not null.
+   */
+  std::nullptr_t& asNull();
+  
+  /**
    * @brief Converts the JSON value into its string representation.
    *
    * @return std::string The JSON string.

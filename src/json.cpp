@@ -1,6 +1,117 @@
 #include <stdexcept>
 #include "json.h"
 
+JSONValue& JSONValue::operator=(const JSONValue json) {
+  value = json.value;
+  return *this;
+}
+
+JSONValue& JSONValue::operator=(const JSONValue::Object object) {
+  value = object;
+  return *this;
+}
+
+JSONValue& JSONValue::operator=(const JSONValue::Array array) {
+  value = array;
+  return *this;
+}
+
+JSONValue& JSONValue::operator=(const double number) {
+  value = number;
+  return *this;
+}
+
+JSONValue& JSONValue::operator=(const char* str) {
+  value = std::string(str);
+  return *this;
+}
+
+JSONValue& JSONValue::operator=(const std::string str) {
+  value = str;
+  return *this;
+}
+
+JSONValue& JSONValue::operator=(const bool boolean) {
+  value = boolean;
+  return *this;
+}
+
+JSONValue& JSONValue::operator=(const std::nullptr_t null) {
+  value = null;
+  return *this;
+}
+
+JSONValue& JSONValue::operator[](const char* str) {
+  std::string key(str);
+  if(JSONValue::Object* object = std::get_if<JSONValue::Object>(&this->value)) {
+    auto it = object->find(key);
+    if(it == object->end()) {
+      object->insert({key, JSONValue(nullptr)});
+    }
+    it = object->find(key);
+    return it->second;
+  } else {
+    throw new std::runtime_error("Invalid [std::string] operator on a non object value");
+  }
+}
+
+JSONValue& JSONValue::operator[](const std::string key) {
+  if(JSONValue::Object* object = std::get_if<JSONValue::Object>(&this->value)) {
+    auto it = object->find(key);
+    if(it == object->end()) {
+      object->insert({key, JSONValue(nullptr)});
+    }
+    it = object->find(key);
+    return it->second;
+  } else {
+    throw new std::runtime_error("Invalid [std::string] operator on a non object value");
+  }
+}
+
+JSONValue& JSONValue::operator[](const int index) {
+  if(JSONValue::Array* array = std::get_if<JSONValue::Array>(&this->value)) {
+    int length = array->size();
+    if(index >= length) {
+      throw new std::runtime_error("Out of bounds index for array value");
+    }
+    return (*array)[index];
+  } else {
+    throw new std::runtime_error("Used [int] operator on a non array value");
+  }
+}
+
+double& JSONValue::asDouble() {
+  if(double* number = std::get_if<double>(&this->value)) {
+    return *number;
+  } else {
+    throw new std::runtime_error("asDouble() used on a non double type JSONValue");
+  }
+}
+
+std::string& JSONValue::asString() {
+  if(std::string* str = std::get_if<std::string>(&this->value)) {
+    return *str;
+  } else {
+    throw new std::runtime_error("asString() used on a non std::string type JSONValue");
+  }
+}
+
+bool& JSONValue::asBool() {
+  if(bool* boolean = std::get_if<bool>(&this->value)) {
+    return *boolean;
+  } else {
+    throw new std::runtime_error("asBool() used on a non boolean type JSONValue");
+  }
+}
+
+std::nullptr_t& JSONValue::asNull() {
+  if(std::nullptr_t* null = std::get_if<std::nullptr_t>(&this->value)) {
+    return *null;
+  } else {
+    throw new std::runtime_error("asNull() used on a non null type JSONValue");
+  }
+}
+
 /**
  * @brief Converts the JSONValue into a JSON-formatted string.
  *

@@ -23,14 +23,11 @@ int main() {
     });
     JSONValue userJson(userInfo);
 
-    if(const JSONValue::Object *obj = std::get_if<JSONValue::Object>(&(userJson.value))) {
-      auto it = obj->find("name");
-      if(it != obj->end()) {
-        if(const std::string *name = std::get_if<std::string>(&it->second.value)) {
-          std::cout << "name: " << *name << std::endl;
-        }
-      }
-    }
+    userJson["name"] = "Gobind";
+
+    std::cout << userJson["name"].asString() << std::endl;
+    std::cout << userJson["details"]["age"].asDouble() << std::endl;
+
     res.json(userJson)->status(201);
   });
 
