@@ -419,9 +419,3 @@ JSONValue JSONParser::parse() {
   else
     throw std::runtime_error("Invalid JSON string value");
 }
-
-// The clear method is commented out as it is not currently required.
-// inline void JSONParser::clear() {
-//   pos = size = 0;
-//   input.~basic_string();
-// }

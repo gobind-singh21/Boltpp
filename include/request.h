@@ -49,14 +49,4 @@ public:
   std::unordered_map<std::string, std::string> queryParameters;  ///< Query parameters from URL.
   std::unordered_map<std::string, std::string> headers;  ///< HTTP headers.
   JSONValue body;      ///< Parsed JSON body (if applicable).
-
-  // Optional destructor cleanup (commented out).
-  // ~Req() {
-  //   method.~basic_string();
-  //   path.~basic_string();
-  //   protocol.~basic_string();
-  //   payload.~basic_string();
-  //   queryParameters.clear();
-  //   headers.clear();
-  // }
 };

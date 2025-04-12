@@ -79,11 +79,4 @@ public:
    * @return Res* Pointer to the current response.
    */
   Res* setHeader(const std::string key, const std::string value);
-
-  // Optional destructor cleanup (commented out).
-  // ~Res() {
-  //   payload.~basic_string();
-  //   protocol.~basic_string();
-  //   headers.clear();
-  // }
 };

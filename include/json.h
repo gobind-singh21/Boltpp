@@ -197,12 +197,6 @@ public:
    * @return std::string The JSON string.
    */
   std::string stringify() const;
-
-  // Optional clear method (currently commented out).
-  // void clear();
-
-  // Destructor (if needed).
-  // ~JSONValue() { this->clear(); }
 };
 
 /**
@@ -264,10 +258,4 @@ public:
    * @return JSONValue The parsed JSON value.
    */
   JSONValue parse();
-
-  // Optional clear method (currently commented out).
-  // inline void clear();
-
-  // Destructor (if needed).
-  // ~JSONParser() { pos = size = 0; input.~basic_string(); }
 };
