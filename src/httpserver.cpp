@@ -346,13 +346,10 @@ void HttpServer::receiverThread() {
       delete ioData;
       continue;
     }
-    {
-      std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
-      socketBuffers[ioData->socket].buffer.append(ioData->buffer, bytesTransfered);
-    }
     std::string fullBuffer;
     {
       std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
+      socketBuffers[ioData->socket].buffer.append(ioData->buffer, bytesTransfered);
       fullBuffer = socketBuffers[ioData->socket].buffer;
     }
     size_t headerEnd = fullBuffer.find("\r\n\r\n");
