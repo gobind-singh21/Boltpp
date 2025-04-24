@@ -288,7 +288,7 @@ void HttpServer::workerThread() {
     // std::cout << "waiting for task" << std::endl;
     {
       std::unique_lock<std::mutex> lock(queueMutex);
-      queueCond.wait(lock, [this]() { return !requestQueue.empty(); });
+      queueCond.wait(lock, [this] { return !requestQueue.empty(); });
       // if(requestQueue.empty())
       //   continue;
       task = requestQueue.front();
