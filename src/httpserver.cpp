@@ -371,12 +371,12 @@ void HttpServer::receiverThread() {
         // We have a complete request
         std::cout << "complete request received" << std::endl;
         {
-          std::unique_lock<std::mutex> lock(queueMutex);
-          // std::lock_guard<std::mutex> lock(queueMutex);
+          // std::unique_lock<std::mutex> lock(queueMutex);
+          std::lock_guard<std::mutex> lock(queueMutex);
           requestQueue.push({ ioData->socket, fullBuffer });
           std::cout << "Task pushed; queue size: " << requestQueue.size() << std::endl;
-          queueCond.notify_one();
         }
+        queueCond.notify_one();
       } else {
         // Wait for more body
         DWORD flags = 0;
