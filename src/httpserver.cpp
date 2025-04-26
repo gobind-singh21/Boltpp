@@ -1,4 +1,3 @@
-#include <iostream>
 #include <thread>
 #include <charconv>
 #include <stdexcept>
@@ -455,7 +454,6 @@ int HttpServer::initServer(int addressFamily, int type, int protocol, int port) 
   }
 
   serverSocket = initialSocket;
-  std::cout << "Server listening on port " << port << std::endl;
 
   iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
   if(!iocp) {
