@@ -6,9 +6,7 @@
 #include "utils.h"
 #include "httpserver.h"
 
-// Define the thread-local storage for socket buffers.
 thread_local std::unordered_map<SOCKET, HttpServer::SocketBuffer> HttpServer::socketBuffers;
-// thread_local std::queue<HttpServer::RequestPackage> HttpServer::requestQueue;
 
 /**
  * @brief Returns the textual description for a given HTTP status code.
@@ -285,20 +283,16 @@ Req HttpServer::parseHttpRequest(const std::string &request, const SOCKET &clien
 void HttpServer::workerThread() {
   while (true) {
     RequestPackage task;
-    // std::cout << "waiting for task" << std::endl;
     {
       std::unique_lock<std::mutex> lock(queueMutex);
-      queueCond.wait(lock, [this] { return !requestQueue.empty(); });
-      // if(requestQueue.empty())
-      //   continue;
+      queueCond.wait(lock, [&]() { return !requestQueue.empty(); });
       task = requestQueue.front();
       requestQueue.pop();
     }
-    std::cout << "Task received" << std::endl;
     Req req = parseHttpRequest(task.rawRequest, task.socket);
     {
       std::lock_guard<std::mutex> lock(socketBuffers[task.socket].mtx);
-      socketBuffers.erase(task.socket);  // Cleanup after parse
+      socketBuffers.erase(task.socket);
     }
     Res res;
     res.setProtocol("HTTP/1.1");
@@ -363,19 +357,13 @@ void HttpServer::receiverThread() {
         contentLength = std::stoi(fullBuffer.substr(pos, endPos - pos));
       }
       size_t receivedBodyLength = fullBuffer.size() - (headerEnd + 4);
-      // std::cout << receivedBodyLength << ':' << contentLength << std::endl;
       if (contentLength == 0 || receivedBodyLength >= contentLength) {
-        // We have a complete request
-        std::cout << "complete request received" << std::endl;
         {
-          // std::unique_lock<std::mutex> lock(queueMutex);
           std::lock_guard<std::mutex> lock(queueMutex);
           requestQueue.push({ ioData->socket, fullBuffer });
-          std::cout << "Task pushed; queue size: " << requestQueue.size() << std::endl;
         }
         queueCond.notify_one();
       } else {
-        // Wait for more body
         DWORD flags = 0;
         ioData->receiving = true;
         WSARecv(ioData->socket, &ioData->wsabuff, 1, nullptr, &flags, &ioData->overlapped, nullptr);
@@ -386,7 +374,6 @@ void HttpServer::receiverThread() {
       ioData->receiving = true;
       WSARecv(ioData->socket, &ioData->wsabuff, 1, nullptr, &flags, &ioData->overlapped, nullptr);
     } else {
-      // Header too large
       closesocket(ioData->socket);
     }
   }
