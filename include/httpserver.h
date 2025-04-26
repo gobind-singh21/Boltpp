@@ -4,7 +4,9 @@
 #include <functional>
 #include <vector>
 #include <unordered_map>
-#include <future>
+#include <queue>
+#include <condition_variable>
+#include <thread>
 
 #include "request.h"
 #include "response.h"
@@ -60,6 +62,15 @@ class HttpServer {
     bool processing = false;  ///< Flag to indicate if the socket is currently processing data.
   };
 
+  struct RequestPackage {
+    SOCKET socket;
+    std::string rawRequest;
+  };
+
+  std::queue<RequestPackage> requestQueue;
+  std::mutex queueMutex;
+  std::condition_variable queueCond;
+
   HANDLE iocp;   ///< Handle to the IO Completion Port.
   std::vector<std::thread> workerThreads;  ///< Worker threads for asynchronous IO processing.
 
@@ -68,6 +79,7 @@ class HttpServer {
 
   std::unordered_map<std::string, Route> allowedRoutes;  ///< Map storing allowed routes and their handlers.
   std::vector<std::function<void(Req&, Res&, long long&)>> globalMiddlewares;  ///< Global middleware functions.
+
 
   static const int BUFFER_SIZE = 10240;  ///< Buffer size for socket communications.
   unsigned int MAX_THREADS = 1;  ///< Maximum number of worker threads.
@@ -137,6 +149,8 @@ class HttpServer {
    */
   void workerThread();
 
+  void receiverThread();
+
 public:
   /**
    * @brief Default constructor.
@@ -169,7 +183,7 @@ public:
    *
    * @param serverSocket The server socket.
    */
-  void serverListen(const SOCKET &serverSocket);
+  void serverListen();
   
   /**
    * @brief Initializes the server socket and starts the IO completion port.

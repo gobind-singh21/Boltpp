@@ -1,5 +1,6 @@
 .vscode/
 build/
+scripts/
 # src/
 server.cpp
 test.cpp

@@ -6,7 +6,6 @@
 #include "utils.h"
 #include "httpserver.h"
 
-// Define the thread-local storage for socket buffers.
 thread_local std::unordered_map<SOCKET, HttpServer::SocketBuffer> HttpServer::socketBuffers;
 
 /**
@@ -282,13 +281,57 @@ Req HttpServer::parseHttpRequest(const std::string &request, const SOCKET &clien
  * parses requests, and dispatches them to the correct route handlers.
  */
 void HttpServer::workerThread() {
-  while(true) {
+  while (true) {
+    RequestPackage task;
+    {
+      std::unique_lock<std::mutex> lock(queueMutex);
+      queueCond.wait(lock, [&]() { return !requestQueue.empty(); });
+      task = requestQueue.front();
+      requestQueue.pop();
+    }
+    Req req = parseHttpRequest(task.rawRequest, task.socket);
+    {
+      std::lock_guard<std::mutex> lock(socketBuffers[task.socket].mtx);
+      socketBuffers.erase(task.socket);
+    }
+    Res res;
+    res.setProtocol("HTTP/1.1");
+    std::string key = req.method + "::" + req.path;
+    if (allowedRoutes.find(key) == allowedRoutes.end()) {
+      res.status(404)->send("Not found");
+    } else {
+      long long i = 0;
+      for (; i < globalMiddlewares.size() && i >= 0; ++i)
+        globalMiddlewares[i](req, res, i);
+      if (i >= 0) {
+        i = 0;
+        auto &route = allowedRoutes[key];
+        for (; i < route.middlewares.size() && i >= 0; ++i)
+          route.middlewares[i](req, res, i);
+        if (i >= 0)
+          route.handler(req, res);
+      }
+    }
+    std::string response = makeHttpResponse(res);
+    send(task.socket, response.c_str(), response.size(), 0);
+    if (req.headers.find("Connection") != req.headers.end()) {
+      if (req.headers["Connection"] == "close")
+        closesocket(task.socket);
+    } else {
+      closesocket(task.socket);
+    }
+  }
+}
+
+
+void HttpServer::receiverThread() {
+  while (true) {
     DWORD bytesTransfered;
     ULONG_PTR completionKey;
     OVERLAPPED* overlapped;
     BOOL result = GetQueuedCompletionStatus(iocp, &bytesTransfered, &completionKey, &overlapped, INFINITE);
     PerIoData* ioData = reinterpret_cast<PerIoData*>(overlapped);
-    if(!result || bytesTransfered == 0) {
+    if (!result || bytesTransfered == 0) {
       closesocket(ioData->socket);
       {
         std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
@@ -297,131 +340,53 @@ void HttpServer::workerThread() {
       delete ioData;
       continue;
     }
-    if(ioData->receiving) {
-      {
-        std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
-        socketBuffers[ioData->socket].buffer.append(ioData->buffer, bytesTransfered);
+    std::string fullBuffer;
+    {
+      std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
+      socketBuffers[ioData->socket].buffer.append(ioData->buffer, bytesTransfered);
+      fullBuffer = socketBuffers[ioData->socket].buffer;
+    }
+    size_t headerEnd = fullBuffer.find("\r\n\r\n");
+    if (headerEnd != std::string::npos) {
+      size_t contentLength = 0;
+      size_t pos = fullBuffer.find("Content-Length:");
+      if (pos != std::string::npos) {
+        pos += strlen("Content-Length:");
+        while (isspace(fullBuffer[pos])) pos++;
+        size_t endPos = fullBuffer.find("\r\n", pos);
+        contentLength = std::stoi(fullBuffer.substr(pos, endPos - pos));
       }
-      bool shouldProcess = false;
-      std::string localBuffer;
-      {
-        std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
-        if(!socketBuffers[ioData->socket].processing && socketBuffers[ioData->socket].buffer.find("\r\n\r\n") != std::string::npos) {
-          localBuffer = socketBuffers[ioData->socket].buffer;
-          socketBuffers[ioData->socket].processing = true;
-          shouldProcess = true;
+      size_t receivedBodyLength = fullBuffer.size() - (headerEnd + 4);
+      if (contentLength == 0 || receivedBodyLength >= contentLength) {
+        {
+          std::lock_guard<std::mutex> lock(queueMutex);
+          requestQueue.push({ ioData->socket, fullBuffer });
         }
-      }
-
-      if(!shouldProcess) {
-        DWORD flags = 0;
-        WSARecv(ioData->socket, &ioData->wsabuff, 1, nullptr, &flags, &ioData->overlapped, nullptr);
-        continue;
-      }
-
-      size_t headerEnd = localBuffer.find("\r\n\r\n"), headerSize = localBuffer.length();
-
-      if(headerEnd != std::string::npos) {
-        int expectedContentLength = 0;
-        size_t pos = localBuffer.find("Content-Length");
-        if(pos != std::string::npos) {
-          pos += strlen("Content-Length:");
-          while(pos < headerEnd && isspace(localBuffer[pos])) { pos++; }
-          size_t endPos = localBuffer.find("\r\n", pos);
-          try {
-            expectedContentLength = std::stoi(localBuffer.substr(pos, endPos - pos));
-          } catch (...) {
-            expectedContentLength = 0;
-          }
-        }
-        size_t receivedBodyLength = localBuffer.size() - (headerEnd + 4);
-        if(expectedContentLength == 0 || receivedBodyLength >= (size_t)expectedContentLength) {
-          Req req = parseHttpRequest(localBuffer, ioData->socket);
-          {
-            std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
-            socketBuffers.erase(ioData->socket);
-          }
-          localBuffer.clear();
-          Res res;
-          res.setProtocol("HTTP/1.1");
-          std::string key = req.method + "::" + req.path;
-          if(allowedRoutes.find(key) == allowedRoutes.end()) {
-            res.status(404)->send("Not found");
-          } else {
-            long long i = 0;
-            size_t mwSize = globalMiddlewares.size();
-            while(i < mwSize && i >= 0) {
-              globalMiddlewares[i](req, res, i);
-              i++;
-            }
-            if(i >= 0) {
-              i = 0;
-              mwSize = allowedRoutes[key].middlewares.size();
-              while(i < mwSize && i >= 0) {
-                allowedRoutes[key].middlewares[i](req, res, i);
-                i++;
-              }
-              if(i >= 0)
-                allowedRoutes[key].handler(req, res);
-            }
-            std::string httpResponse = makeHttpResponse(res);
-            ioData->wsabuff.buf = ioData->buffer;
-            ioData->wsabuff.len = httpResponse.size();
-            memcpy(ioData->buffer, httpResponse.c_str(), httpResponse.size());
-            ioData->receiving = false;
-            WSASend(ioData->socket, &ioData->wsabuff, 1, nullptr, 0, &ioData->overlapped, nullptr);
-
-            if(req.headers.find("Connection") != req.headers.end()) {
-              size_t pos = req.headers["Connection"].find("keep-alive");
-              if(pos == std::string::npos) {
-                if(req.headers["Connection"] == "close")
-                  closesocket(ioData->socket);
-              } else {
-                // TODO : implement keep alive header functionality
-              }
-            } else
-              closesocket(ioData->socket);
-          }
-        } else {
-          ioData->receiving = true;
-          DWORD flags = 0;
-          WSARecv(ioData->socket, &ioData->wsabuff, 1, nullptr, &flags, &ioData->overlapped, nullptr);
-          continue;
-        }
-      } else if(headerSize < MAX_HEADER_SIZE) {
-        ioData->receiving = true;
-        DWORD flags = 0;
-        WSARecv(ioData->socket, &ioData->wsabuff, 1, nullptr, &flags, &ioData->overlapped, nullptr);
-        continue;
+        queueCond.notify_one();
       } else {
-        socketBuffers.erase(ioData->socket);
-        Res res;
-        res.setProtocol("HTTP/1.1");
-        res.status(400)->send("Header size exceeded");
-        std::string response = makeHttpResponse(res);
-        ioData->wsabuff.buf = ioData->buffer;
-        ioData->wsabuff.len = response.size();
-        memcpy(ioData->buffer, response.c_str(), response.size());
-        WSASend(ioData->socket, &ioData->wsabuff, 1, nullptr, 0, &ioData->overlapped, nullptr);
-        closesocket(ioData->socket);
-        delete ioData;
+        DWORD flags = 0;
+        ioData->receiving = true;
+        WSARecv(ioData->socket, &ioData->wsabuff, 1, nullptr, &flags, &ioData->overlapped, nullptr);
         continue;
       }
+    } else if (fullBuffer.size() < MAX_HEADER_SIZE) {
+      DWORD flags = 0;
+      ioData->receiving = true;
+      WSARecv(ioData->socket, &ioData->wsabuff, 1, nullptr, &flags, &ioData->overlapped, nullptr);
     } else {
-      delete ioData;
+      closesocket(ioData->socket);
     }
   }
 }
+
 
 /**
  * @brief Accepts incoming client connections and sets up asynchronous IO.
  *
  * For each accepted connection, associates the client socket with the IO Completion Port and
  * starts an asynchronous receive.
- *
- * @param serverSocket The server socket.
  */
-void HttpServer::serverListen(const SOCKET &serverSocket) {
+void HttpServer::serverListen() {
   while(true) {
     sockaddr_in clientAddr;
     int addrlen = sizeof(clientAddr);
@@ -492,7 +457,7 @@ int HttpServer::initServer(int addressFamily, int type, int protocol, int port) 
   serverSocket = initialSocket;
   std::cout << "Server listening on port " << port << std::endl;
 
-  iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 0);
+  iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
   if(!iocp) {
     throw std::runtime_error("CreateIoCompletionPort failed");
   }
@@ -500,6 +465,8 @@ int HttpServer::initServer(int addressFamily, int type, int protocol, int port) 
   for(int i = 0; i < MAX_THREADS; i++) {
     workerThreads.emplace_back(&HttpServer::workerThread, this);
   }
+  std::thread(&HttpServer::serverListen, this).detach();
+  std::thread(&HttpServer::receiverThread, this).detach();
 
   return initialSocket;
 }
