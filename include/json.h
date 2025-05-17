@@ -9,6 +9,9 @@
  * @brief The JSONValue class represents a JSON value that can be of various types.
  */
 class JSONValue {
+
+  void stringifyTo(std::string &out) const;
+
 public:
   using Object = std::unordered_map<std::string, JSONValue>;  ///< JSON object (dictionary).
   using Array = std::vector<JSONValue>;                         ///< JSON array (list).

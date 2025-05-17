@@ -10,7 +10,7 @@
  * Checks if the request contains a JSON payload, parses it using JSONParser,
  * and assigns the result to req.body. If parsing fails, it sends a 400 Bad Request response.
  */
-inline auto JsonBodyParser = [](Req &req, Res &res, long long &next) {
+inline auto JsonBodyParser = [](Request &req, Response &res, long long &next) {
   if(req.headers["Content-Type"].find("application/json") != std::string::npos) {
     try {
       req.body = JSONParser(req.payload).parse();
@@ -29,7 +29,7 @@ inline auto JsonBodyParser = [](Req &req, Res &res, long long &next) {
  * Checks if the request has the "application/x-www-form-urlencoded" content type,
  * decodes the payload, and assigns it to req.body as a JSON object.
  */
-inline auto UrlencodedBodyParser = [](Req &req, Res &res, long long &next) {
+inline auto UrlencodedBodyParser = [](Request &req, Response &res, long long &next) {
   if(req.headers["Content-Type"].find("application/x-www-form-urlencoded") != std::string::npos) {
     auto urlEncodingCharacter = [](const std::string sequence) {
       if(sequence[0] != '%' && sequence.length() != 3)

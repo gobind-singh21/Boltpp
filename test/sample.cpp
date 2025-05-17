@@ -5,16 +5,16 @@
 int main() {
   HttpServer server;
 
-  server.use([](Req &req, Res &res, long long &next) {
+  server.use([](Request &request, Response &response, long long &next) {
     std::cout << "Request recieved" << std::endl;
     next++;
   });
-  server.use([](Req &req, Res &res, long long &next) {
-    std::cout << req.payload << std::endl;
+  server.use([](Request &request, Response &response, long long &next) {
+    std::cout << request.payload << std::endl;
     next++;
   });
 
-  server.Get("/user", {}, [](Req &req, Res &res) {
+  server.Get("/user", {}, [](Request &request, Response &response) {
     JSONValue::Object userInfo;
     userInfo["name"] = "Alex";
     userInfo["details"] = JSONValue({
@@ -28,12 +28,12 @@ int main() {
     std::cout << userJson["name"].asString() << std::endl;
     std::cout << userJson["details"]["age"].asDouble() << std::endl;
 
-    res.json(userJson)->status(201);
+    response.json(userJson)->status(201);
   });
 
   SOCKET serverSocket = server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 9000);
 
-  server.serverListen(serverSocket);
+  server.serverListen();
 
   getchar();
   return 0;

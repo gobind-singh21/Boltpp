@@ -1,11 +1,85 @@
 #include <thread>
 #include <charconv>
 #include <stdexcept>
+#include <algorithm>
 
 #include "utils.h"
 #include "httpserver.h"
 
 thread_local std::unordered_map<SOCKET, HttpServer::SocketBuffer> HttpServer::socketBuffers;
+HttpServer::PathTree HttpServer::registeredPaths;
+
+void HttpServer::PathTree::addPath(const std::string &path) {
+  auto segments = split(path, '/');
+  auto node = root;
+
+  for(const auto &segment : segments) {
+    if(!segment.empty() && segment[0] == ':') {
+      if(!node->paramChild) {
+        node->paramChild = std::make_shared<Trie>();
+        node->paramChild->paramName = segment.substr(1);
+      }
+      node = node->paramChild;
+    } else {
+      if(node->children.find(segment) == node->children.end())
+        node->children[segment] = std::make_shared<Trie>();
+      node = node->children[segment];
+    }
+  }
+
+  node->isEndOfPath = true;
+}
+
+std::unordered_map<std::string, std::string> HttpServer::PathTree::getPathParams(const std::string &path) {
+  auto segments = split(path, '/');
+  auto node = root;
+
+  std::unordered_map<std::string, std::string> params;
+
+  for(const auto &segment : segments) {
+    if(node->children.find(segment) != node->children.end()) {
+      node = node->children[segment];
+    } else if(node->paramChild) {
+      params[node->paramChild->paramName] = segment;
+      node = node->paramChild;
+    } else {
+      return {};
+    }
+  }
+
+  if(node->isEndOfPath)
+    return params;
+  return {};
+}
+
+std::string HttpServer::PathTree::getNormalisedPath(const std::string &path) {
+  auto segments = split(path, '/');
+  auto node = root;
+
+  std::string normalisedPath;
+  normalisedPath.reserve(path.size());
+
+  for(const auto &segment : segments) {
+    if(node->children.find(segment) != node->children.end()) {
+      normalisedPath.push_back('/');
+      normalisedPath.append(segment);
+      node = node->children[segment];
+    } else if(node->paramChild) {
+      normalisedPath.append("/:");
+      normalisedPath.append(node->paramChild->paramName);
+      node = node->paramChild;
+    } else {
+      return "";
+    }
+  }
+
+  if(node->isEndOfPath) {
+    if(normalisedPath.size() > 1)
+      return normalisedPath.substr(1);
+    return normalisedPath;
+  }
+  return "";
+}
 
 /**
  * @brief Returns the textual description for a given HTTP status code.
@@ -87,12 +161,12 @@ std::string HttpServer::getStatusCodeWord(const int statusCode) {
 }
 
 /**
- * @brief Constructs an HTTP response string from the given Res object.
+ * @brief Constructs an HTTP response string from the given Response object.
  *
  * @param res The response object.
  * @return std::string The full HTTP response string.
  */
-std::string HttpServer::makeHttpResponse(const Res &res) {
+std::string HttpServer::makeHttpResponse(const Response &res) {
   int statusCode = res.getStatusCode();
   std::string response, payload = res.getPayload();
   response.reserve(10240 + payload.length());
@@ -139,28 +213,36 @@ char HttpServer::urlEncodingCharacter(const std::string specialSequence) {
 }
 
 /**
- * @brief Parses query parameters from the URL and stores them in the Req object.
+ * @brief Parses query parameters from the URL and stores them in the Request object.
  *
  * @param req The request object.
+ * @return
  */
-void HttpServer::parseQueryParameters(Req &req) {
-  size_t pathSize = req.path.length(), lastIndex = pathSize - 1, pos = -1;
+void HttpServer::parseQueryParameters(Request &req) {
+  size_t pathSize = req.url.length(), lastIndex = pathSize - 1, pos = -1;
   for(size_t i = 0; i < pathSize; i++) {
-    if(req.path[i] == '?') {
+    if(req.url[i] == '?') {
       pos = i;
       break;
     }
   }
-  if(pos == -1 || pos == lastIndex)
+  if(pos == -1 || pos == lastIndex) {
+    req.path = req.url.substr(0);
+    if(pos == lastIndex)
+      req.path.pop_back();
     return;
+  }
+  req.path = req.url.substr(0, pos);
   pos++;
   bool keyEnd = false;
   size_t thirdLast = pathSize - 3;
   std::string key = "", value = "";
   for(size_t i = pos; i < pathSize; i++) {
-    char c = req.path[i];
+    char c = req.url[i];
     if(c == '&') {
       req.queryParameters[key] = value;
+      value = key = "";
+      keyEnd = false;
     } else if(c == '=') {
       keyEnd = true;
     } else if(c == '%' && i < thirdLast) {
@@ -189,7 +271,7 @@ void HttpServer::parseQueryParameters(Req &req) {
  * @param res The response object containing the error status.
  * @param clientSocket The client socket.
  */
-void HttpServer::sendErrorResponse(Res &res, const SOCKET &clientSocket) {
+void HttpServer::sendErrorResponse(Response &res, const SOCKET &clientSocket) {
   std::string errorMessage = getStatusCodeWord(res.getStatusCode());
   JSONValue::Object message;
   message["message"] = errorMessage;
@@ -200,14 +282,14 @@ void HttpServer::sendErrorResponse(Res &res, const SOCKET &clientSocket) {
 }
 
 /**
- * @brief Parses a raw HTTP request string and returns a Req object.
+ * @brief Parses a raw HTTP request string and returns a Request object.
  *
  * @param request The raw HTTP request.
  * @param clientSocket The client socket.
- * @return Req The parsed request.
+ * @return Request The parsed request.
  */
-Req HttpServer::parseHttpRequest(const std::string &request, const SOCKET &clientSocket) {
-  Req req;
+Request HttpServer::parseHttpRequest(const std::string &request, const SOCKET &clientSocket) {
+  Request req;
   size_t size = request.size(), i = 0, lastIndex = size - 1, thirdLastIndex = size - 4;
   short token = 0;
   while(i < size && !(request[i] == '\r' && i < lastIndex && request[i + 1] == '\n')) {
@@ -218,12 +300,17 @@ Req HttpServer::parseHttpRequest(const std::string &request, const SOCKET &clien
       if(token == 0)
         req.method.push_back(c);
       else if(token == 1)
-        req.path.push_back(c);
+        req.url.push_back(c);
       else if(token == 2)
         req.protocol.push_back(c);
     }
     i++;
   }
+
+  parseQueryParameters(req);
+
+  req.pathParameters = registeredPaths.getPathParams(req.path);
+
   i += 2;
 
   std::string key = "", value = "";
@@ -246,7 +333,7 @@ Req HttpServer::parseHttpRequest(const std::string &request, const SOCKET &clien
       break;
   }
   if(key != "" || value != "") {
-    Res res;
+    Response res;
     res.status(400)->setProtocol(req.protocol);
     sendErrorResponse(res, clientSocket);
     req.payload = "Bad Request";
@@ -258,7 +345,7 @@ Req HttpServer::parseHttpRequest(const std::string &request, const SOCKET &clien
     int cLength = 0, length = contentLength.length();
     auto res = std::from_chars(contentLength.data(), contentLength.data() + length, cLength);
     if(res.ec != std::errc() || (res.ptr != contentLength.data() + length)) {
-      Res res;
+      Response res;
       res.status(400)->send("Malformed request");
       sendErrorResponse(res, clientSocket);
       req.payload = "Bad Request";
@@ -288,15 +375,14 @@ void HttpServer::workerThread() {
       task = requestQueue.front();
       requestQueue.pop();
     }
-    Req req = parseHttpRequest(task.rawRequest, task.socket);
-    {
-      std::lock_guard<std::mutex> lock(socketBuffers[task.socket].mtx);
-      socketBuffers.erase(task.socket);
-    }
-    Res res;
+    Request req = parseHttpRequest(task.rawRequest, task.socket);
+    if(req.payload == "Bad Request")
+      continue;
+    Response res;
     res.setProtocol("HTTP/1.1");
-    std::string key = req.method + "::" + req.path;
-    if (allowedRoutes.find(key) == allowedRoutes.end()) {
+    std::string requestPath = registeredPaths.getNormalisedPath(req.path);
+    std::string key = req.method + "::" + registeredPaths.getNormalisedPath(req.path);
+    if (requestPath.empty() || allowedRoutes.find(key) == allowedRoutes.end()) {
       res.status(404)->send("Not found");
     } else {
       long long i = 0;
@@ -313,16 +399,30 @@ void HttpServer::workerThread() {
     }
     std::string response = makeHttpResponse(res);
     send(task.socket, response.c_str(), response.size(), 0);
+    bool terminateSocket = false;
     if (req.headers.find("Connection") != req.headers.end()) {
-      if (req.headers["Connection"] == "close")
-        closesocket(task.socket);
-    } else {
+      std::string connectionHeader = req.headers["Connection"];
+      std::transform(connectionHeader.begin(), connectionHeader.end(), connectionHeader.begin(), ::tolower);
+      if(connectionHeader.compare("close") == 0)
+        terminateSocket = true;
+    }
+    if(terminateSocket)
       closesocket(task.socket);
+    else {
+      PerIoData* ioData = new PerIoData();
+      ioData->socket = task.socket;
+      ioData->wsabuff.buf = ioData->buffer;
+      ioData->wsabuff.len = BUFFER_SIZE;
+      ioData->receiving = true;
+      DWORD flags = 0;
+      WSARecv(task.socket, &ioData->wsabuff, 1, nullptr, &flags, &ioData->overlapped, nullptr);
     }
   }
 }
 
-
+/**
+ * @brief Thread function for receiving requests and pushing them to request queue
+ */
 void HttpServer::receiverThread() {
   while (true) {
     DWORD bytesTransfered;
@@ -360,6 +460,7 @@ void HttpServer::receiverThread() {
         {
           std::lock_guard<std::mutex> lock(queueMutex);
           requestQueue.push({ ioData->socket, fullBuffer });
+          socketBuffers.erase(ioData->socket);
         }
         queueCond.notify_one();
       } else {
@@ -416,19 +517,17 @@ void HttpServer::serverListen() {
  * @param port The port number.
  * @return int The server socket descriptor.
  */
-int HttpServer::initServer(int addressFamily, int type, int protocol, int port) {
+void HttpServer::initServer(int addressFamily, int type, int protocol, int port, std::function<void()> callback = []() {}) {
   WSADATA wsadata;
   int result = WSAStartup(MAKEWORD(2, 2), &wsadata);
   if(result != 0) {
     throw std::runtime_error("DLL not found");
-    return result;
   }
 
   SOCKET initialSocket = socket(addressFamily, type, protocol);
   if(initialSocket == INVALID_SOCKET) {
     WSACleanup();
     throw std::runtime_error(std::string("Error in socket ") + std::to_string(WSAGetLastError()));
-    return initialSocket;
   }
 
   sockaddr_in serverAddr;
@@ -442,7 +541,6 @@ int HttpServer::initServer(int addressFamily, int type, int protocol, int port) 
     closesocket(initialSocket);
     WSACleanup();
     throw std::runtime_error(std::string("Error in binding ") + std::to_string(WSAGetLastError()));
-    return result;
   }
 
   int listenResult = listen(initialSocket, 10);
@@ -450,7 +548,6 @@ int HttpServer::initServer(int addressFamily, int type, int protocol, int port) 
     closesocket(initialSocket);
     WSACleanup();
     throw std::runtime_error(std::string("Error in listening ") + std::to_string(WSAGetLastError()));
-    return listenResult;
   }
 
   serverSocket = initialSocket;
@@ -466,7 +563,7 @@ int HttpServer::initServer(int addressFamily, int type, int protocol, int port) 
   std::thread(&HttpServer::serverListen, this).detach();
   std::thread(&HttpServer::receiverThread, this).detach();
 
-  return initialSocket;
+  callback();
 }
 
 /**
@@ -476,8 +573,9 @@ int HttpServer::initServer(int addressFamily, int type, int protocol, int port) 
  * @param middlewares Vector of middlewares for this route.
  * @param handler The handler function for the route.
  */
-void HttpServer::Get(const std::string path, const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares, std::function<void(Req&, Res&)> handler) {
+void HttpServer::Get(const std::string path, const std::vector<std::function<void(Request&, Response&, long long&)>> middlewares, std::function<void(Request&, Response&)> handler) {
   std::string key = "GET::" + path;
+  registeredPaths.addPath(path);
   allowedRoutes[key] = Route(middlewares, handler);
 }
 
@@ -488,8 +586,9 @@ void HttpServer::Get(const std::string path, const std::vector<std::function<voi
  * @param middlewares Vector of middlewares for this route.
  * @param handler The handler function for the route.
  */
-void HttpServer::Post(const std::string path, const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares, std::function<void(Req&, Res&)> handler) {
+void HttpServer::Post(const std::string path, const std::vector<std::function<void(Request&, Response&, long long&)>> middlewares, std::function<void(Request&, Response&)> handler) {
   std::string key = "POST::" + path;
+  registeredPaths.addPath(path);
   allowedRoutes[key] = Route(middlewares, handler);
 }
 
@@ -500,8 +599,9 @@ void HttpServer::Post(const std::string path, const std::vector<std::function<vo
  * @param middlewares Vector of middlewares for this route.
  * @param handler The handler function for the route.
  */
-void HttpServer::Put(const std::string path, const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares, std::function<void(Req&, Res&)> handler) {
+void HttpServer::Put(const std::string path, const std::vector<std::function<void(Request&, Response&, long long&)>> middlewares, std::function<void(Request&, Response&)> handler) {
   std::string key = "PUT::" + path;
+  registeredPaths.addPath(path);
   allowedRoutes[key] = Route(middlewares, handler);
 }
 
@@ -512,8 +612,9 @@ void HttpServer::Put(const std::string path, const std::vector<std::function<voi
  * @param middlewares Vector of middlewares for this route.
  * @param handler The handler function for the route.
  */
-void HttpServer::Patch(const std::string path, const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares, std::function<void(Req&, Res&)> handler) {
+void HttpServer::Patch(const std::string path, const std::vector<std::function<void(Request&, Response&, long long&)>> middlewares, std::function<void(Request&, Response&)> handler) {
   std::string key = "PATCH::" + path;
+  registeredPaths.addPath(path);
   allowedRoutes[key] = Route(middlewares, handler);
 }
 
@@ -524,7 +625,8 @@ void HttpServer::Patch(const std::string path, const std::vector<std::function<v
  * @param middlewares Vector of middlewares for this route.
  * @param handler The handler function for the route.
  */
-void HttpServer::Delete(const std::string path, const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares, std::function<void(Req&, Res&)> handler) {
+void HttpServer::Delete(const std::string path, const std::vector<std::function<void(Request&, Response&, long long&)>> middlewares, std::function<void(Request&, Response&)> handler) {
   std::string key = "DELETE::" + path;
+  registeredPaths.addPath(path);
   allowedRoutes[key] = Route(middlewares, handler);
 }

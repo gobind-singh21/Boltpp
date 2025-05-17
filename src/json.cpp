@@ -1,5 +1,42 @@
 #include <stdexcept>
+#include <charconv>
 #include "json.h"
+
+void JSONValue::stringifyTo(std::string &out) const {
+  std::visit([&out](auto&& arg) {
+    using T = std::decay_t<decltype(arg)>;
+    if constexpr (std::is_same_v<T, std::nullptr_t>)
+      out.append("null");
+    else if constexpr (std::is_same_v<T, bool>)
+      out.append(arg ? "true" : "false");
+    else if constexpr (std::is_same_v<T, double>)
+      out.append(std::to_string(arg));
+    else if constexpr (std::is_same_v<T, std::string>) {
+      out.push_back('"');
+      out.append(arg);
+      out.push_back('"');
+    } else if constexpr (std::is_same_v<T, Array>) {
+      out.push_back('[');
+      for (size_t i = 0; i < arg.size(); ++i) {
+        if (i > 0) out.push_back(',');
+        arg[i].stringifyTo(out);
+      }
+      out.push_back(']');
+    } else if constexpr (std::is_same_v<T, Object>) {
+      out.push_back('{');
+      bool first = true;
+      for (const auto& kv : arg) {
+        if (!first) out.push_back(',');
+        first = false;
+        out.push_back('"');
+        out.append(kv.first);
+        out.append("\":");
+        kv.second.stringifyTo(out);
+      }
+      out.push_back('}');
+    }
+  }, value);
+}
 
 JSONValue& JSONValue::operator=(const JSONValue json) {
   value = json.value;
@@ -51,20 +88,16 @@ JSONValue& JSONValue::operator[](const char* str) {
     it = object->find(key);
     return it->second;
   } else {
-    throw new std::runtime_error("Invalid [std::string] operator on a non object value");
+    throw std::runtime_error("Invalid [std::string] operator on a non object value");
   }
 }
 
 JSONValue& JSONValue::operator[](const std::string key) {
   if(JSONValue::Object* object = std::get_if<JSONValue::Object>(&this->value)) {
-    auto it = object->find(key);
-    if(it == object->end()) {
-      object->insert({key, JSONValue(nullptr)});
-    }
-    it = object->find(key);
+    auto [it, _] = object->try_emplace(key, nullptr);
     return it->second;
   } else {
-    throw new std::runtime_error("Invalid [std::string] operator on a non object value");
+    throw std::runtime_error("Invalid [std::string] operator on a non object value");
   }
 }
 
@@ -72,11 +105,11 @@ JSONValue& JSONValue::operator[](const int index) {
   if(JSONValue::Array* array = std::get_if<JSONValue::Array>(&this->value)) {
     int length = array->size();
     if(index >= length) {
-      throw new std::runtime_error("Out of bounds index for array value");
+      throw std::runtime_error("Out of bounds index for array value");
     }
     return (*array)[index];
   } else {
-    throw new std::runtime_error("Used [int] operator on a non array value");
+    throw std::runtime_error("Used [int] operator on a non array value");
   }
 }
 
@@ -84,7 +117,7 @@ double& JSONValue::asDouble() {
   if(double* number = std::get_if<double>(&this->value)) {
     return *number;
   } else {
-    throw new std::runtime_error("asDouble() used on a non double type JSONValue");
+    throw std::runtime_error("asDouble() used on a non double type JSONValue");
   }
 }
 
@@ -92,7 +125,7 @@ std::string& JSONValue::asString() {
   if(std::string* str = std::get_if<std::string>(&this->value)) {
     return *str;
   } else {
-    throw new std::runtime_error("asString() used on a non std::string type JSONValue");
+    throw std::runtime_error("asString() used on a non std::string type JSONValue");
   }
 }
 
@@ -100,7 +133,7 @@ bool& JSONValue::asBool() {
   if(bool* boolean = std::get_if<bool>(&this->value)) {
     return *boolean;
   } else {
-    throw new std::runtime_error("asBool() used on a non boolean type JSONValue");
+    throw std::runtime_error("asBool() used on a non boolean type JSONValue");
   }
 }
 
@@ -108,7 +141,7 @@ std::nullptr_t& JSONValue::asNull() {
   if(std::nullptr_t* null = std::get_if<std::nullptr_t>(&this->value)) {
     return *null;
   } else {
-    throw new std::runtime_error("asNull() used on a non null type JSONValue");
+    throw std::runtime_error("asNull() used on a non null type JSONValue");
   }
 }
 
@@ -121,50 +154,10 @@ std::nullptr_t& JSONValue::asNull() {
  */
 std::string JSONValue::stringify() const {
   std::string output = "";
-  output.reserve(1000);
-  std::visit([&output](auto&& arg) {
-    using T = std::decay_t<decltype(arg)>;
-    if constexpr (std::is_same_v<T, std::nullptr_t>)
-      output.append("null");
-    else if constexpr (std::is_same_v<T, bool>)
-      output.append(arg ? "true" : "false");
-    else if constexpr (std::is_same_v<T, double>)
-      output.append(std::to_string(arg));
-    else if constexpr (std::is_same_v<T, std::string>) {
-      output.append("\"");
-      output.append(arg);
-      output.append("\"");
-    }
-    else if constexpr (std::is_same_v<T, Array>) {
-      output.append("[");
-      size_t size = arg.size();
-      for(int i = 0; i < size; i++) {
-        if(i > 0)
-          output.append(",");
-        output.append(arg[i].stringify());
-      }
-      output.append("]");
-    } else if constexpr (std::is_same_v<T, Object>) {
-      output.append("{");
-      bool first = true;
-      for(const auto &kv : arg) {
-        if(!first) output.append(",");
-        first = false;
-        output.append("\"");
-        output.append(kv.first);
-        output.append("\":");
-        output.append(kv.second.stringify());
-      }
-      output.append("}");
-    }
-  }, value);
+  output.reserve(2048);
+  stringifyTo(output);
   return output;
 }
-
-// The clear method is commented out as it is currently not in use.
-// inline void JSONValue::clear() {
-//   value = std::variant<std::nullptr_t, bool, double, std::string, Array, Object>();
-// }
 
 /**
  * @brief Parses a JSON boolean value from the input.
@@ -172,13 +165,14 @@ std::string JSONValue::stringify() const {
  * @return JSONValue The parsed boolean.
  */
 JSONValue JSONParser::parseBoolean() {
-  if(pos <= size - 5 && input[pos] == 'f' && input[pos + 1] == 'a' && input[pos + 2] == 'l' && input[pos + 3] == 's' && input[pos + 4] == 'e') {
-    for(int i = 0; i < 5; i++)
-      get();
+  if (input.compare(pos, 4, "true") == 0) {
+    pos += 4;
+    return JSONValue(true);
+  }
+  if (input.compare(pos, 5, "false") == 0) {
+    pos += 5;
     return JSONValue(false);
   }
-  else if(pos <= size - 4 && get() == 't' && get() == 'r' && get() == 'u' && get() == 'e')
-    return JSONValue(true);
   else
     throw std::runtime_error("Unexpected value caught, expected boolean");
 }
@@ -239,25 +233,14 @@ JSONValue JSONParser::parseString() {
  * @return JSONValue The parsed number.
  */
 JSONValue JSONParser::parseNumber() {
-  std::string number;
-  number.reserve(310);
-  if(peek() == '-') 
-    number.push_back(get());
-  while(std::isdigit(peek()))
-    number.push_back(get());
-  if(peek() == '.') {
-    number.push_back(get());
-    while(std::isdigit(peek()))
-      number.push_back(get());
+  const char* start = &input[pos];
+  while (pos < size && (std::isdigit(input[pos]) || input[pos] == '-' || input[pos] == '+' || input[pos] == '.' || input[pos] == 'e' || input[pos] == 'E')) {
+    pos++;
   }
-  if(peek() == 'e' || peek() == 'E') {
-    number.push_back(get());
-    if(peek() == '+' || peek() == '-')
-      number.push_back(get());
-    while(std::isdigit(peek()))
-      number.push_back(get());
-  }
-  double num = std::stod(number);
+  std::string_view numberView(start, &input[pos] - start);
+  double num;
+  auto res = std::from_chars(numberView.data(), numberView.data() + numberView.size(), num);
+  if (res.ec != std::errc()) throw std::runtime_error("Invalid number");
   return JSONValue(num);
 }
 
@@ -268,7 +251,8 @@ JSONValue JSONParser::parseNumber() {
  */
 JSONValue JSONParser::parseObject() {
   JSONValue::Object obj;
-  get(); // Skip '{'
+  obj.reserve(16);
+  get();
   skipWhitespaces();
   if(peek() == '}') {
     get();
@@ -335,7 +319,8 @@ JSONValue JSONParser::parseObject() {
  */
 JSONValue JSONParser::parseArray() {
   JSONValue::Array arr;
-  get(); // Skip '['
+  arr.reserve(16);
+  get();
   skipWhitespaces();
   if(peek() == ']') {
     get();

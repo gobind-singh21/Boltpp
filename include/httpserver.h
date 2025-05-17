@@ -22,6 +22,30 @@
 class HttpServer {
   SOCKET serverSocket;
 
+  class PathTree {
+    class Trie {
+    public:
+      std::unordered_map<std::string, std::shared_ptr<Trie>> children;
+
+      /**
+       * @brief Used for storing ":id" like param nodes
+       */
+      std::shared_ptr<Trie> paramChild = nullptr;
+
+      /**
+       * @brief Used for storing parameter name at that segment
+       */
+      std::string paramName;
+      bool isEndOfPath = false;
+    };
+
+    std::shared_ptr<Trie> root = std::make_shared<Trie>();
+
+  public:
+    void addPath(const std::string &path);
+    std::unordered_map<std::string, std::string> getPathParams(const std::string &path);
+    std::string getNormalisedPath(const std::string &path);
+  };
   /**
    * @brief The Route class represents a route with its associated middlewares and handler.
    */
@@ -30,7 +54,7 @@ class HttpServer {
     /**
      * @brief Default constructor for Route.
      */
-    Route() : middlewares({}), handler([](Req &req, Res &res) {}) {}
+    Route() : middlewares({}), handler([](Request &request, Response &response) {}) {}
 
     /**
      * @brief Constructs a Route with specified middlewares and a handler.
@@ -38,8 +62,8 @@ class HttpServer {
      * @param _middlewares A vector of middleware functions.
      * @param _handler A function to handle the request and response.
      */
-    Route(std::vector<std::function<void(Req&, Res&, long long&)>> _middlewares,
-          std::function<void(Req&, Res&)> _handler)
+    Route(std::vector<std::function<void(Request&, Response&, long long&)>> _middlewares,
+          std::function<void(Request&, Response&)> _handler)
           : middlewares(_middlewares), handler(_handler) {}
 
     /**
@@ -49,8 +73,8 @@ class HttpServer {
      */
     Route(const Route &route) : middlewares(route.middlewares), handler(route.handler) {}
 
-    std::vector<std::function<void(Req&, Res&, long long&)>> middlewares;  ///< Middleware functions for this route.
-    std::function<void(Req&, Res&)> handler;  ///< Handler function for processing the request.
+    std::vector<std::function<void(Request&, Response&, long long&)>> middlewares;  ///< Middleware functions for this route.
+    std::function<void(Request&, Response&)> handler;  ///< Handler function for processing the request.
   };
 
   /**
@@ -67,6 +91,7 @@ class HttpServer {
     std::string rawRequest;
   };
 
+  static PathTree registeredPaths;
   std::queue<RequestPackage> requestQueue;
   std::mutex queueMutex;
   std::condition_variable queueCond;
@@ -78,7 +103,7 @@ class HttpServer {
   static thread_local std::unordered_map<SOCKET, SocketBuffer> socketBuffers;
 
   std::unordered_map<std::string, Route> allowedRoutes;  ///< Map storing allowed routes and their handlers.
-  std::vector<std::function<void(Req&, Res&, long long&)>> globalMiddlewares;  ///< Global middleware functions.
+  std::vector<std::function<void(Request&, Response&, long long&)>> globalMiddlewares;  ///< Global middleware functions.
 
 
   static const int BUFFER_SIZE = 10240;  ///< Buffer size for socket communications.
@@ -105,12 +130,12 @@ class HttpServer {
   static std::string getStatusCodeWord(const int statusCode);
 
   /**
-   * @brief Creates a full HTTP response string from a Res object.
+   * @brief Creates a full HTTP response string from a Response object.
    *
    * @param res The response object.
    * @return std::string The complete HTTP response.
    */
-  static std::string makeHttpResponse(const Res &res);
+  static std::string makeHttpResponse(const Response &response);
 
   /**
    * @brief Decodes a URL-encoded special sequence into its corresponding character.
@@ -121,11 +146,11 @@ class HttpServer {
   static char urlEncodingCharacter(const std::string specialSequence);
 
   /**
-   * @brief Parses query parameters from the request URL and adds them to the Req object.
+   * @brief Parses query parameters from the request URL and adds them to the Request object.
    *
    * @param req The request object.
    */
-  static void parseQueryParameters(Req &req);
+  static void parseQueryParameters(Request &request);
 
   /**
    * @brief Sends an error response to the client.
@@ -133,16 +158,16 @@ class HttpServer {
    * @param res The response object containing the error details.
    * @param clientSocket The client socket.
    */
-  static void sendErrorResponse(Res &res, const SOCKET &clientSocket);
+  static void sendErrorResponse(Response &response, const SOCKET &clientSocket);
   
   /**
-   * @brief Parses an HTTP request string into a Req object.
+   * @brief Parses an HTTP request string into a Request object.
    *
    * @param request The raw HTTP request string.
    * @param clientSocket The client socket.
-   * @return Req The parsed request.
+   * @return Request The parsed request.
    */
-  static Req parseHttpRequest(const std::string &request, const SOCKET &clientSocket);
+  static Request parseHttpRequest(const std::string &requestuest, const SOCKET &clientSocket);
 
   /**
    * @brief Function executed by worker threads to handle IO completion events.
@@ -194,14 +219,14 @@ public:
    * @param port The port number.
    * @return int The socket descriptor on success.
    */
-  int initServer(int addressFamily, int type, int protocol, int port);
+  void initServer(int addressFamily, int type, int protocol, int port, std::function<void()> callback);
 
   /**
    * @brief Adds a global middleware function that applies to all routes.
    *
    * @param middleware The middleware function.
    */
-  inline void use(std::function<void(Req&, Res&, long long&)> middleware) {
+  inline void use(std::function<void(Request&, Response&, long long&)> middleware) {
     globalMiddlewares.emplace_back(middleware);
   }
 
@@ -213,8 +238,8 @@ public:
    * @param handler The handler function.
    */
   void Get(const std::string path,
-           const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares,
-           std::function<void(Req&, Res&)> handler);
+           const std::vector<std::function<void(Request&, Response&, long long&)>> middlewares,
+           std::function<void(Request&, Response&)> handler);
 
   /**
    * @brief Registers a POST route with associated middlewares and a handler.
@@ -224,8 +249,8 @@ public:
    * @param handler The handler function.
    */
   void Post(const std::string path,
-            const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares,
-            std::function<void(Req&, Res&)> handler);
+            const std::vector<std::function<void(Request&, Response&, long long&)>> middlewares,
+            std::function<void(Request&, Response&)> handler);
 
   /**
    * @brief Registers a PATCH route with associated middlewares and a handler.
@@ -235,8 +260,8 @@ public:
    * @param handler The handler function.
    */
   void Patch(const std::string path,
-             const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares,
-             std::function<void(Req&, Res&)> handler);
+             const std::vector<std::function<void(Request&, Response&, long long&)>> middlewares,
+             std::function<void(Request&, Response&)> handler);
 
   /**
    * @brief Registers a PUT route with associated middlewares and a handler.
@@ -246,8 +271,8 @@ public:
    * @param handler The handler function.
    */
   void Put(const std::string path,
-           const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares,
-           std::function<void(Req&, Res&)> handler);
+           const std::vector<std::function<void(Request&, Response&, long long&)>> middlewares,
+           std::function<void(Request&, Response&)> handler);
 
   /**
    * @brief Registers a DELETE route with associated middlewares and a handler.
@@ -257,8 +282,8 @@ public:
    * @param handler The handler function.
    */
   void Delete(const std::string path,
-              const std::vector<std::function<void(Req&, Res&, long long&)>> middlewares,
-              std::function<void(Req&, Res&)> handler);
+              const std::vector<std::function<void(Request&, Response&, long long&)>> middlewares,
+              std::function<void(Request&, Response&)> handler);
 
   /**
    * @brief Destructor for HttpServer.
@@ -268,7 +293,7 @@ public:
   ~HttpServer() {
     workerThreads.clear();
     closesocket(serverSocket);
-    for(std::pair<const SOCKET, SocketBuffer> &it : socketBuffers)
+    for(const std::pair<const SOCKET, SocketBuffer> &it : socketBuffers)
       closesocket(it.first);
     socketBuffers.clear();
     globalMiddlewares.clear();
