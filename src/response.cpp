@@ -4,9 +4,9 @@
  * @brief Sets the HTTP status code of the response.
  *
  * @param statusCode The desired status code.
- * @return Res* Pointer to the current response for chaining.
+ * @return Response* Pointer to the current response for chaining.
  */
-Res* Res::status(int statusCode) {
+Response* Response::status(int statusCode) {
   this->statusCode = statusCode;
   return this;
 }
@@ -17,9 +17,9 @@ Res* Res::status(int statusCode) {
  * Also sets the Content-Type header to "application/json".
  *
  * @param j The JSON value.
- * @return Res* Pointer to the current response for chaining.
+ * @return Response* Pointer to the current response for chaining.
  */
-Res* Res::json(const JSONValue &j) {
+Response* Response::json(const JSONValue &j) {
   std::string jsonString = j.stringify();
   this->payload = jsonString;
   headers["Content-Type"] = "application/json";
@@ -33,9 +33,9 @@ Res* Res::json(const JSONValue &j) {
  * Also sets the Content-Type header to "text/plain; charset=UTF-8".
  *
  * @param data The plain text data.
- * @return Res* Pointer to the current response for chaining.
+ * @return Response* Pointer to the current response for chaining.
  */
-Res* Res::send(const std::string data) {
+Response* Response::send(const std::string data) {
   this->payload = data;
   headers["Content-Type"] = "text/plain; charset=UTF-8";
   headers["Content-Length"] = std::to_string(data.length());
@@ -47,9 +47,9 @@ Res* Res::send(const std::string data) {
  *
  * @param key The header name.
  * @param value The header value.
- * @return Res* Pointer to the current response for chaining.
+ * @return Response* Pointer to the current response for chaining.
  */
-Res* Res::setHeader(const std::string key, const std::string value) {
+Response* Response::setHeader(const std::string key, const std::string value) {
   headers[key] = value;
   return this;
 }
