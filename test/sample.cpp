@@ -31,7 +31,9 @@ int main() {
     response.json(userJson)->status(201);
   });
 
-  SOCKET serverSocket = server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 9000);
+  server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 9000, []() {
+    
+  });
 
   server.serverListen();
 
