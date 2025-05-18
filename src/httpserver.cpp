@@ -2,6 +2,7 @@
 #include <charconv>
 #include <stdexcept>
 #include <algorithm>
+#include <iostream>
 
 #include "utils.h"
 #include "httpserver.h"
@@ -168,23 +169,41 @@ std::string HttpServer::getStatusCodeWord(const int statusCode) {
  */
 std::string HttpServer::makeHttpResponse(const Response &res) {
   int statusCode = res.getStatusCode();
-  std::string response, payload = res.getPayload();
+  const std::string &payload = res.getPayload();
+
+  std::string response;
   response.reserve(10240 + payload.length());
+
   response.append(res.getProtocol());
   response.append(" ");
   response.append(std::to_string(statusCode));
   response.append(" ");
   response.append(getStatusCodeWord(statusCode));
   response.append("\r\n");
-  for(const auto &it : res.headers) {
+
+  // Ensure Content-Length is set
+  if (res.headers.find("Content-Length") == res.headers.end()) {
+    response.append("Content-Length: ");
+    response.append(std::to_string(payload.size()));
+    response.append("\r\n");
+  }
+
+  // Ensure Connection is set (default keep-alive)
+  if (res.headers.find("Connection") == res.headers.end()) {
+    response.append("Connection: keep-alive\r\n");
+  }
+
+  // Other headers
+  for (const auto &it : res.headers) {
     response.append(it.first);
     response.append(": ");
     response.append(it.second);
     response.append("\r\n");
   }
-  response.append("\r\n");
-  response.append(payload);
-  response.append("\r\n");
+
+  response.append("\r\n"); // End of headers
+  response.append(payload); // Body only, no extra \r\n
+  // std::cout << "[Response] : " << response << std::endl;
   return response;
 }
 
@@ -439,6 +458,7 @@ void HttpServer::receiverThread() {
       delete ioData;
       continue;
     }
+    // std::cout << "Request received" << std::endl;
     std::string fullBuffer;
     {
       std::lock_guard<std::mutex> lock(socketBuffers[ioData->socket].mtx);
@@ -460,6 +480,7 @@ void HttpServer::receiverThread() {
         {
           std::lock_guard<std::mutex> lock(queueMutex);
           requestQueue.push({ ioData->socket, fullBuffer });
+          // std::cout << "Request pushed" << std::endl;
           socketBuffers.erase(ioData->socket);
         }
         queueCond.notify_one();

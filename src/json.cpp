@@ -251,7 +251,7 @@ JSONValue JSONParser::parseNumber() {
  */
 JSONValue JSONParser::parseObject() {
   JSONValue::Object obj;
-  obj.reserve(16);
+  obj.reserve(128);
   get();
   skipWhitespaces();
   if(peek() == '}') {
@@ -319,7 +319,7 @@ JSONValue JSONParser::parseObject() {
  */
 JSONValue JSONParser::parseArray() {
   JSONValue::Array arr;
-  arr.reserve(16);
+  arr.reserve(128);
   get();
   skipWhitespaces();
   if(peek() == ']') {
