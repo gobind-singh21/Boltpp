@@ -15,7 +15,7 @@ inline auto JsonBodyParser = [](Request &req, Response &res, long long &next) {
     try {
       req.body = JSONParser(req.payload).parse();
     } catch (const std::exception &e) {
-      res.status(400)->send("Bad Request");
+      res.status(400).send("Bad Request");
       next = -1; // Stop further middleware execution.
       return;
     }
@@ -31,7 +31,7 @@ inline auto JsonBodyParser = [](Request &req, Response &res, long long &next) {
  */
 inline auto UrlencodedBodyParser = [](Request &req, Response &res, long long &next) {
   if(req.headers["Content-Type"].find("application/x-www-form-urlencoded") != std::string::npos) {
-    auto urlEncodingCharacter = [](const std::string sequence) {
+    auto urlEncodingCharacter = [](const std::string_view sequence) {
       if(sequence[0] != '%' && sequence.length() != 3)
         return '\0';
       if(sequence.compare("%20") == 0)
@@ -62,7 +62,8 @@ inline auto UrlencodedBodyParser = [](Request &req, Response &res, long long &ne
       } else if(c == '=')
         keyEnd = true;
       else if(c == '%' && i < thirdLast) {
-        char ch = urlEncodingCharacter(req.payload.substr(i, 3));
+        char ch = urlEncodingCharacter(std::string_view(req.payload.c_str() + i, i + 3));
+        // char ch = urlEncodingCharacter(req.payload.substr(i, 3));
         if(keyEnd)
           value.push_back(ch);
         else
