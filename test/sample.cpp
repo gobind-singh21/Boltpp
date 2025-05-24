@@ -28,7 +28,7 @@ int main() {
     std::cout << userJson["name"].asString() << std::endl;
     std::cout << userJson["details"]["age"].asDouble() << std::endl;
 
-    response.json(userJson)->status(201);
+    response.json(userJson).status(201);
   });
 
   server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 9000, []() {

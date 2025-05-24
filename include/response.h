@@ -51,32 +51,40 @@ public:
    * @brief Sets the status code for the response.
    *
    * @param statusCode The HTTP status code.
-   * @return Response* Pointer to the current response (for chaining).
+   * @return Response reference to the current response (for chaining).
    */
-  Response* status(int statusCode);
+  Response& status(int statusCode);
 
   /**
    * @brief Sets the response payload as a JSON string.
    *
    * @param j The JSON value to be sent.
-   * @return Response* Pointer to the current response.
+   * @return Response reference to the current response.
    */
-  Response* json(const JSONValue &j);
+  Response& json(const JSONValue &j);
 
+  // /**
+  //  * @brief Sets the response payload as plain text.
+  //  *
+  //  * @param data The plain text data.
+  //  * @return Response reference to the current response.
+  //  */
+  // Response& send(const std::string data);
+  
   /**
-   * @brief Sets the response payload as plain text.
+   * @brief Sets the response payload as plain text (recommended).
    *
-   * @param data The plain text data.
-   * @return Response* Pointer to the current response.
+   * @param data string of the data to be inserted.
+   * @return Response reference to the current response.
    */
-  Response* send(const std::string data);
+  Response& send(const std::string_view dataView);
 
   /**
    * @brief Sets a header for the response.
    *
    * @param key Header name.
    * @param value Header value.
-   * @return Response* Pointer to the current response.
+   * @return Response reference to the current response.
    */
-  Response* setHeader(const std::string key, const std::string value);
+  Response& setHeader(const std::string key, const std::string value);
 };

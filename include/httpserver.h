@@ -5,8 +5,9 @@
 #include <vector>
 #include <unordered_map>
 #include <queue>
-#include <condition_variable>
 #include <thread>
+#include <memory>
+#include <condition_variable>
 
 #include "request.h"
 #include "response.h"
@@ -20,6 +21,9 @@
  * and dispatches the request to the appropriate handler. It also creates and manages worker threads.
  */
 class HttpServer {
+  static const int contentLengthStringLength = 16;
+  const char* contentLength = "Content-Length:";
+
   SOCKET serverSocket;
 
   class PathTree {
@@ -97,13 +101,12 @@ class HttpServer {
   std::condition_variable queueCond;
 
   HANDLE iocp;   ///< Handle to the IO Completion Port.
-  std::vector<std::thread> workerThreads;  ///< Worker threads for asynchronous IO processing.
 
-  // Thread-local storage for per-socket buffers.
-  static thread_local std::unordered_map<SOCKET, SocketBuffer> socketBuffers;
+  // storage for per-socket buffers.
+  static std::unordered_map<SOCKET, SocketBuffer> socketBuffers;
 
-  std::unordered_map<std::string, Route> allowedRoutes;  ///< Map storing allowed routes and their handlers.
-  std::vector<std::function<void(Request&, Response&, long long&)>> globalMiddlewares;  ///< Global middleware functions.
+  static std::unordered_map<std::string, Route> allowedRoutes;  ///< Map storing allowed routes and their handlers.
+  static std::vector<std::function<void(Request&, Response&, long long&)>> globalMiddlewares;  ///< Global middleware functions.
 
 
   static const int BUFFER_SIZE = 10240;  ///< Buffer size for socket communications.
@@ -143,7 +146,7 @@ class HttpServer {
    * @param specialSequence The URL-encoded sequence.
    * @return char The decoded character.
    */
-  static char urlEncodingCharacter(const std::string specialSequence);
+  static char urlEncodingCharacter(std::string_view specialSequence);
 
   /**
    * @brief Parses query parameters from the request URL and adds them to the Request object.
@@ -169,13 +172,16 @@ class HttpServer {
    */
   static Request parseHttpRequest(const std::string &requestuest, const SOCKET &clientSocket);
 
+  // static void processRequest(const std::string httpRequest, const SOCKET clientSocket);
+
   /**
    * @brief Function executed by worker threads to handle IO completion events.
    */
-  void workerThread();
+  void workerThreadFunction();
 
-  void receiverThread();
-
+  void receiverThreadFunction();
+  
+  void serverListen();
 public:
   /**
    * @brief Default constructor.
@@ -201,14 +207,13 @@ public:
    *
    * @param threads The number of threads.
    */
-  inline void setThreads(unsigned int threads) { MAX_THREADS = threads; }
+  void setThreads(unsigned int threads);
 
   /**
    * @brief Starts listening for incoming connections on the provided server socket.
    *
    * @param serverSocket The server socket.
    */
-  void serverListen();
   
   /**
    * @brief Initializes the server socket and starts the IO completion port.
@@ -291,7 +296,6 @@ public:
    * Cleans up all resources, closes sockets, and clears data structures.
    */
   ~HttpServer() {
-    workerThreads.clear();
     closesocket(serverSocket);
     for(const std::pair<const SOCKET, SocketBuffer> &it : socketBuffers)
       closesocket(it.first);
