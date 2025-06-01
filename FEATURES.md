@@ -30,6 +30,6 @@
 
 - ## Replace JSONParser with SIMDjson (not started)
 
-- ## CORS configuration (not started)
+- ## CORS configuration (completed)
 
 - ## Optimizing code a lot (working)
