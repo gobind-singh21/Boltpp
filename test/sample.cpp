@@ -11,7 +11,7 @@ int main() {
   });
 
   server.use([](Request &request, Response &response, long long &next) {
-    std::cout << "Request recieved" << std::endl;
+    std::cout << "Request received" << std::endl;
     next++;
   });
   server.use([](Request &request, Response &response, long long &next) {
