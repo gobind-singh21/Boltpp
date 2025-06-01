@@ -5,8 +5,13 @@
 int main() {
   HttpServer server;
 
+  server.createCorsConfig([](CorsConfig &config) {
+    config.allowedOrigins = {"*"};
+    config.allowedMethods = {"POST", "PUT", "GET", "DELETE", "OPTIONS"};
+  });
+
   server.use([](Request &request, Response &response, long long &next) {
-    std::cout << "Request recieved" << std::endl;
+    std::cout << "Request received" << std::endl;
     next++;
   });
   server.use([](Request &request, Response &response, long long &next) {
@@ -14,7 +19,7 @@ int main() {
     next++;
   });
 
-  server.Get("/user", {}, [](Request &request, Response &response) {
+  server.Get("/user", [](Request &request, Response &response) {
     JSONValue::Object userInfo;
     userInfo["name"] = "Alex";
     userInfo["details"] = JSONValue({
@@ -32,11 +37,9 @@ int main() {
   });
 
   server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 9000, []() {
-    
+    std::cout << "Server listening on server port 9000" << std::endl;
   });
 
   server.serverListen();
-
-  getchar();
   return 0;
 }

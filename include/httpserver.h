@@ -11,6 +11,7 @@
 
 #include "request.h"
 #include "response.h"
+#include "CORS.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -23,6 +24,9 @@
 class HttpServer {
   static const int contentLengthStringLength = 16;
   const char* contentLength = "Content-Length:";
+
+  CorsConfig corsConfig;
+  bool corsEnabled = false;
 
   SOCKET serverSocket;
 
@@ -95,7 +99,7 @@ class HttpServer {
     std::string rawRequest;
   };
 
-  static PathTree registeredPaths;
+  PathTree registeredPaths;
   std::queue<RequestPackage> requestQueue;
   std::mutex queueMutex;
   std::condition_variable queueCond;
@@ -103,10 +107,10 @@ class HttpServer {
   HANDLE iocp;   ///< Handle to the IO Completion Port.
 
   // storage for per-socket buffers.
-  static std::unordered_map<SOCKET, SocketBuffer> socketBuffers;
+  std::unordered_map<SOCKET, SocketBuffer> socketBuffers;
 
-  static std::unordered_map<std::string, Route> allowedRoutes;  ///< Map storing allowed routes and their handlers.
-  static std::vector<std::function<void(Request&, Response&, long long&)>> globalMiddlewares;  ///< Global middleware functions.
+  std::unordered_map<std::string, Route> allowedRoutes;  ///< Map storing allowed routes and their handlers.
+  std::vector<std::function<void(Request&, Response&, long long&)>> globalMiddlewares;  ///< Global middleware functions.
 
 
   static const int BUFFER_SIZE = 10240;  ///< Buffer size for socket communications.
@@ -148,6 +152,8 @@ class HttpServer {
    */
   static char urlEncodingCharacter(std::string_view specialSequence);
 
+  static std::string decodeUrl(std::string_view input);
+
   /**
    * @brief Parses query parameters from the request URL and adds them to the Request object.
    *
@@ -162,6 +168,8 @@ class HttpServer {
    * @param clientSocket The client socket.
    */
   static void sendErrorResponse(Response &response, const SOCKET &clientSocket);
+
+  static Request sendBadRequest(Request &req, SOCKET clientsocket);
   
   /**
    * @brief Parses an HTTP request string into a Request object.
@@ -170,9 +178,9 @@ class HttpServer {
    * @param clientSocket The client socket.
    * @return Request The parsed request.
    */
-  static Request parseHttpRequest(const std::string &requestuest, const SOCKET &clientSocket);
+  static Request parseHttpRequest(const std::string &request, const SOCKET &clientSocket, PathTree &registeredPaths);
 
-  // static void processRequest(const std::string httpRequest, const SOCKET clientSocket);
+  bool validateCors(Request &req);
 
   /**
    * @brief Function executed by worker threads to handle IO completion events.
@@ -181,7 +189,6 @@ class HttpServer {
 
   void receiverThreadFunction();
   
-  void serverListen();
 public:
   /**
    * @brief Default constructor.
@@ -210,10 +217,11 @@ public:
   void setThreads(unsigned int threads);
 
   /**
-   * @brief Starts listening for incoming connections on the provided server socket.
-   *
-   * @param serverSocket The server socket.
+   * @brief Starts listening for incoming connections.
+   * 
+   * @note After this control flow of your program won't go ahead
    */
+  void serverListen();
   
   /**
    * @brief Initializes the server socket and starts the IO completion port.
@@ -235,6 +243,8 @@ public:
     globalMiddlewares.emplace_back(middleware);
   }
 
+  void createCorsConfig(std::function<void(CorsConfig&)> configurer);
+
   /**
    * @brief Registers a GET route with associated middlewares and a handler.
    *
@@ -245,6 +255,14 @@ public:
   void Get(const std::string path,
            const std::vector<std::function<void(Request&, Response&, long long&)>> middlewares,
            std::function<void(Request&, Response&)> handler);
+  
+  /**
+   * @brief Registers a GET route with an associated handler.
+   *
+   * @param path The route path.
+   * @param handler The handler function.
+   */
+  void Get(const std::string path, std::function<void(Request&, Response&)> handler);
 
   /**
    * @brief Registers a POST route with associated middlewares and a handler.
@@ -258,6 +276,14 @@ public:
             std::function<void(Request&, Response&)> handler);
 
   /**
+   * @brief Registers a POST route with an associated handler.
+   *
+   * @param path The route path.
+   * @param handler The handler function.
+   */
+  void Post(const std::string path, std::function<void(Request&, Response&)> handler);
+
+  /**
    * @brief Registers a PATCH route with associated middlewares and a handler.
    *
    * @param path The route path.
@@ -267,6 +293,14 @@ public:
   void Patch(const std::string path,
              const std::vector<std::function<void(Request&, Response&, long long&)>> middlewares,
              std::function<void(Request&, Response&)> handler);
+
+  /**
+   * @brief Registers a PATCH route with an associated handler.
+   *
+   * @param path The route path.
+   * @param handler The handler function.
+   */
+  void Patch(const std::string path, std::function<void(Request&, Response&)> handler);
 
   /**
    * @brief Registers a PUT route with associated middlewares and a handler.
@@ -280,6 +314,14 @@ public:
            std::function<void(Request&, Response&)> handler);
 
   /**
+   * @brief Registers a PUT route with an associated handler.
+   *
+   * @param path The route path.
+   * @param handler The handler function.
+   */
+  void Put(const std::string path, std::function<void(Request&, Response&)> handler);
+
+  /**
    * @brief Registers a DELETE route with associated middlewares and a handler.
    *
    * @param path The route path.
@@ -289,6 +331,14 @@ public:
   void Delete(const std::string path,
               const std::vector<std::function<void(Request&, Response&, long long&)>> middlewares,
               std::function<void(Request&, Response&)> handler);
+
+  /**
+   * @brief Registers a DELETE route with an associated handler.
+   *
+   * @param path The route path.
+   * @param handler The handler function.
+   */
+  void Delete(const std::string path, std::function<void(Request&, Response&)> handler);
 
   /**
    * @brief Destructor for HttpServer.

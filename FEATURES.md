@@ -24,10 +24,12 @@
 
 - ## Worker thread pool for processing request parallely (completed)
 
+- ## Redirecting (not started)
+
 - ## Static file serving (not started)
 
 - ## Replace JSONParser with SIMDjson (not started)
 
-- ## CORS configuration (not started)
+- ## CORS configuration (completed)
 
 - ## Optimizing code a lot (working)
