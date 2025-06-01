@@ -432,7 +432,7 @@ void HttpServer::workerThreadFunction() {
     Request req = parseHttpRequest(task.rawRequest, task.socket, registeredPaths);
     if(req.payload == "Bad Request")
       continue;
-    bool isValidRequest = validateCors(req);
+    bool isValidRequest = !corsEnabled || validateCors(req);
     Response res;
     if(isValidRequest) {
       res.setProtocol("HTTP/1.1");
