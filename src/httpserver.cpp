@@ -678,6 +678,10 @@ void HttpServer::initServer(int port, std::function<void()> callback = []() {}, 
   serverListen();
 }
 
+void HttpServer::initServer(int port, std::function<void()> callback = []() {}) {
+  initServer(port, callback, AF_INET, SOCK_STREAM, IPPROTO_TCP);
+}
+
 /**
  * @brief Use this function to create a cors configuration for your backend service
  * @param configurer Lamba function which takes a CorsConfig object by reference as a parameter

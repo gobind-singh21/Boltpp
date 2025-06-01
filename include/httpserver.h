@@ -234,6 +234,8 @@ public:
    */
   void initServer(int port, std::function<void()> callback, int addressFamily, int type, int protocol);
 
+  void initServer(int port, std::function<void()> callback);
+
   /**
    * @brief Adds a global middleware function that applies to all routes.
    *
