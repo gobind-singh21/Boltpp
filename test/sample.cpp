@@ -8,6 +8,7 @@ int main() {
   server.createCorsConfig([](CorsConfig &config) {
     config.allowedOrigins = {"*"};
     config.allowedMethods = {"POST", "PUT", "GET", "DELETE", "OPTIONS"};
+    config.withCredentials = false;
   });
 
   server.use([](Request &request, Response &response, long long &next) {
@@ -36,10 +37,9 @@ int main() {
     response.json(userJson).status(201);
   });
 
-  server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 9000, []() {
+  server.initServer(9000, []() {
     std::cout << "Server listening on server port 9000" << std::endl;
   });
 
-  server.serverListen();
   return 0;
 }
