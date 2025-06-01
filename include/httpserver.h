@@ -232,7 +232,7 @@ public:
    * @param port The port number.
    * @return int The socket descriptor on success.
    */
-  void initServer(int port, std::function<void()> callback = []() {}, int addressFamily = AF_INET, int type = SOCK_STREAM, int protocol = IPPROTO_TCP);
+  void initServer(int port, std::function<void()> callback, int addressFamily, int type, int protocol);
 
   /**
    * @brief Adds a global middleware function that applies to all routes.
