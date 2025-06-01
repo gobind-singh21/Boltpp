@@ -2,7 +2,7 @@
 tests/
 build/
 scripts/
-src/
+# src/
 server.cpp
 test.cpp
 *.exe
