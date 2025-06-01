@@ -628,7 +628,7 @@ void HttpServer::setThreads(unsigned int threads) {
   MAX_THREADS = threads;
 }
 
-void HttpServer::initServer(int addressFamily, int type, int protocol, int port, std::function<void()> callback = []() {}) {
+void HttpServer::initServer(int port, std::function<void()> callback = []() {}, int addressFamily = AF_INET, int type = SOCK_STREAM, int protocol = IPPROTO_TCP) {
   WSADATA wsadata;
   int result = WSAStartup(MAKEWORD(2, 2), &wsadata);
   if(result != 0) {
@@ -674,6 +674,8 @@ void HttpServer::initServer(int addressFamily, int type, int protocol, int port,
   std::thread(&HttpServer::receiverThreadFunction, this).detach();
 
   callback();
+
+  serverListen();
 }
 
 /**
