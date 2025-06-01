@@ -18,4 +18,4 @@ std::string trim(const std::string_view view);
  * @param delim The delimiter character.
  * @return std::vector<std::string> A vector of substrings.
  */
-std::vector<std::string> split(const std::string str, const char delim);
+std::vector<std::string> split(const std::string_view str, const char delim);
