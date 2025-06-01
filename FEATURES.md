@@ -24,6 +24,8 @@
 
 - ## Worker thread pool for processing request parallely (completed)
 
+- ## Redirecting (not started)
+
 - ## Static file serving (not started)
 
 - ## Replace JSONParser with SIMDjson (not started)

@@ -9,7 +9,7 @@
  * @param str The string to trim.
  * @return std::string The trimmed string.
  */
-std::string trim(const std::string str);
+std::string trim(const std::string_view view);
 
 /**
  * @brief Splits a string into a vector of substrings based on a delimiter.

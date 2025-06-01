@@ -14,9 +14,13 @@
 class Response {
   int statusCode = 200;   ///< HTTP status code.
   std::string payload;    ///< Response payload.
-  std::string protocol;   ///< HTTP protocol version.
+  std::string protocol = "HTTP/1.1";   ///< HTTP protocol version.
 
 public:
+  Response() {
+    headers["Content-Type"] = "text/plain; charset=UTF-8";
+  }
+
   std::unordered_map<std::string, std::string> headers;  ///< HTTP headers.
 
   /**
@@ -24,7 +28,7 @@ public:
    *
    * @param protocol The protocol string.
    */
-  inline void setProtocol(const std::string protocol) { this->protocol = protocol; }
+  Response& setProtocol(const std::string protocol);
 
   /**
    * @brief Gets the HTTP protocol version.
