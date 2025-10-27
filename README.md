@@ -21,6 +21,7 @@ Boltpp is a lightweight, high-performance, and expressive C++17 HTTP server libr
     - [Middleware](#middleware)
     - [The `Request` Object](#the-request-object)
     - [The `Response` Object](#the-response-object)
+  - [🔒 Configuring CORS](#-configuring-cors)
   - [📄 Working with JSON](#-working-with-json)
     - [Creating a `JSONValue`](#creating-a-jsonvalue)
     - [Modifying a `JSONValue`](#modifying-a-jsonvalue)
