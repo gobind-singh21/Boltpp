@@ -1,320 +1,378 @@
-# Boltpp – High-Performance C++ HTTP Server Library 🚀🚀🚀
+# Boltpp – A High-Performance C++ HTTP Server 🚀
 
-Boltpp is a high-performance, expressive, and lightweight C++ HTTP server library that mimics the simplicity of Express.js while leveraging the power and performance of native C++. Built from scratch using Winsock2 and standard C++ libraries, Boltpp enables fast HTTP request handling with built-in support for routing, middleware, JSON parsing, and multithreading. ⚡️⚙️🧵
+Boltpp is a lightweight, high-performance, and expressive C++17 HTTP server library inspired by the simplicity of Express.js. Built from the ground up using Winsock2 and modern C++ features, Boltpp provides a powerful toolkit for creating fast and scalable web services with zero external dependencies. It features a robust routing system, flexible middleware support, a built-in JSON parser, and asynchronous, multithreaded request handling right out of the box. ⚡️
 
 ---
 
-## 📚 Table of Contents 🧭🗂️📝
+## 📚 Table of Contents
 
-- [Boltpp – High-Performance C++ HTTP Server Library 🚀🚀🚀](#boltpp--high-performance-c-http-server-library-)
-  - [📚 Table of Contents 🧭🗂️📝](#-table-of-contents-️)
-  - [🚀 Features 💡💥📌](#-features-)
-  - [📂 Directory Structure 🗂️📁🔧](#-directory-structure-️)
-  - [💪 Installation 🧰📦⚙️](#-installation-️)
-    - [Step 1: Build and Install](#step-1-build-and-install)
-    - [Step 2: Use in Your Project](#step-2-use-in-your-project)
-  - [🏗️ Getting Started 🧪🗒️🛫](#️-getting-started-️)
-    - [Example](#example)
-  - [📜 API Documentation 📘📚🧾](#-api-documentation-)
-    - [HttpServer Methods](#httpserver-methods)
+- [Boltpp – A High-Performance C++ HTTP Server 🚀](#boltpp--a-high-performance-c-http-server-)
+  - [📚 Table of Contents](#-table-of-contents)
+  - [✨ Key Features](#-key-features)
+  - [💡 Why Choose Boltpp?](#-why-choose-boltpp)
+  - [🧰 Installation and Setup](#-installation-and-setup)
+    - [Prerequisites](#prerequisites)
+    - [Option 1: As a Git Submodule (Recommended)](#option-1-as-a-git-submodule-recommended)
+    - [Option 2: Manual Build and System-Wide Install](#option-2-manual-build-and-system-wide-install)
+  - [🛫 Getting Started: Your First Server](#-getting-started-your-first-server)
+  - [📘 API Reference](#-api-reference)
+    - [The `HttpServer` Class](#the-httpserver-class)
+    - [Routing](#routing)
     - [Middleware](#middleware)
-    - [Request class 📨📥🔍](#request-class-)
-    - [Response class 📤🧞✅](#response-class-)
-    - [Creating API End points](#creating-api-end-points)
-  - [🪧 JSONValue Utilities 🧠📄🔎](#-jsonvalue-utilities-)
-    - [Construct JSON](#construct-json)
-    - [Access JSON Fields](#access-json-fields)
-    - [Stringify JSON](#stringify-json)
-  - [🌟 Advantages over Other Frameworks 🏋️🧰💯](#-advantages-over-other-frameworks-️)
-  - [🚫 Limitations (To Be Improved) 🗱️⚠️🔧](#-limitations-to-be-improved-️️)
-  - [📧 Contact 💬👤📨](#-contact-)
+    - [The `Request` Object](#the-request-object)
+    - [The `Response` Object](#the-response-object)
+  - [📄 Working with JSON](#-working-with-json)
+    - [Creating a `JSONValue`](#creating-a-jsonvalue)
+    - [Modifying a `JSONValue`](#modifying-a-jsonvalue)
+    - [Accessing Data (Type-Safe)](#accessing-data-type-safe)
+    - [Stringifying a `JSONValue`](#stringifying-a-jsonvalue)
+  - [📊 Feature Comparison](#-feature-comparison)
+  - [🗺️ Project Roadmap](#️-project-roadmap)
+  - [🤝 Contributing](#-contributing)
+  - [📧 Contact](#-contact)
 
 ---
 
-## 🚀 Features 💡💥📌
+## ✨ Key Features
 
-- 🔹 **Simple and Expressive API** similar to Express.js
-- 🔹 **Asynchronous I/O** via IOCP (Windows)
-- 🔹 **Routing for all HTTP methods** (GET, POST, etc.)
-- 🔹 **Middleware support** with next-based chaining
-- 🔹 **Built-in JSON and URL-Encoded Parsers**
-- 🔹 **Keep-alive and persistent connections**
-- 🔹 **Multithreaded request handling** via a configurable thread pool
-- 🔹 **No external dependencies** (pure C++ with Winsock2)
-
----
-
-## 📂 Directory Structure 🗂️📁🔧
-
-```dir
-Boltpp/
-├── include/
-│   ├── httpserver.h
-│   ├── request.h
-│   ├── response.h
-│   ├── json.h
-│   ├── utils.h
-│   └── middlewares.h
-├── src/
-│   ├── httpserver.cpp
-│   ├── json.cpp
-│   ├── response.cpp
-│   └── utils.cpp
-└── CMakeLists.txt
-```
+- 🔹 **Express.js-Inspired API**: A simple and intuitive interface that feels familiar to Node.js developers.
+- 🔹 **High-Performance I/O**: Asynchronous request handling using Windows IOCP for maximum throughput.
+- 🔹 **Powerful Routing**: Full support for all standard HTTP methods, parameterized paths (`/users/:id`), and query strings.
+- 🔹 **Flexible Middleware**: Chain global or route-specific middleware to handle logging, authentication, parsing, and more.
+- 🔹 **Built-in Parsers**: Out-of-the-box support for `application/json` and `application/x-www-form-urlencoded` request bodies.
+- 🔹 **Multithreading**: A configurable worker thread pool to process incoming requests concurrently.
+- 🔹 **Zero Dependencies**: Built with pure C++17 and the native Winsock2 library. No external libraries needed.
+- 🔹 **Connection Management**: Supports HTTP Keep-Alive for persistent connections, reducing latency.
 
 ---
 
-## 💪 Installation 🧰📦⚙️
+## 💡 Why Choose Boltpp?
 
-### Step 1: Build and Install
+-   **Simplicity and Productivity**: Get a server up and running in minutes with an API designed for clarity and ease of use. Focus on your application logic, not boilerplate.
+-   **Native Performance**: Leverage the raw power of C++ for applications where every microsecond counts, such as game backends, real-time APIs, and high-traffic web services.
+-   **Total Control**: With zero dependencies, Boltpp offers a lightweight, transparent, and easily integrated solution for any C++ project.
+
+---
+
+## 🧰 Installation and Setup
+
+### Prerequisites
+
+-   A C++17 compliant compiler (e.g., MSVC, MinGW-w64)
+-   CMake (version 3.10 or later)
+-   Ninja or another build system (optional, but recommended)
+-   Windows Operating System (due to Winsock2/IOCP)
+
+### Option 1: As a Git Submodule (Recommended)
+
+This is the modern, recommended approach for integrating libraries into your CMake project. It avoids system-wide installs and keeps dependencies self-contained.
+
+1.  **Add Boltpp as a submodule to your project:**
+    ```bash
+    git submodule add https://github.com/your-username/Boltpp.git vendor/Boltpp
+    ```
+
+2.  **Configure your project's `CMakeLists.txt`:**
+    ```cmake
+    cmake_minimum_required(VERSION 3.10)
+    project(MyAwesomeApp)
+
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+    # Add the Boltpp subdirectory to your build
+    add_subdirectory(vendor/Boltpp)
+
+    # Add your executable
+    add_executable(MyAwesomeApp main.cpp)
+
+    # Link against the Boltpp library
+    target_link_libraries(MyAwesomeApp PRIVATE Boltpp::Boltpp)
+    ```
+
+### Option 2: Manual Build and System-Wide Install
+
+Follow these steps if you prefer to build and install the library on your system.
 
 ```bash
-🔹 git clone https://github.com/yourname/Boltpp.git
-🔹 cd Boltpp
-🔹 mkdir build && cd build
-🔹 cmake .. -G "Ninja" -DCMAKE_INSTALL_PREFIX="C:/Program Files (x86)/Boltpp"
-🔹 ninja
-🔹 ninja install
+# 1. Clone the repository
+git clone https://github.com/your-username/Boltpp.git
+cd Boltpp
+
+# 2. Create a build directory
+mkdir build && cd build
+
+# 3. Configure with CMake (specify your install location)
+cmake .. -G "Ninja" -DCMAKE_INSTALL_PREFIX="C:/your/install/path/Boltpp"
+
+# 4. Build the library
+ninja
+
+# 5. Install the library
+ninja install
 ```
-
-> Requires: C++17, MinGW-w64 or MSVC, Winsock2 🎯🖥️🔗
-
-### Step 2: Use in Your Project
-
-```cmake
-cmake_minimum_required(VERSION 3.10)
-project(MyApp)
-
-set(CMAKE_CXX_STANDARD 17)
-find_package(Boltpp REQUIRED)
-
-add_executable(MyApp main.cpp)
-target_link_libraries(MyApp Boltpp::Boltpp)
-```
+Then, in your project's `CMakeLists.txt`, use `find_package` to locate and link the installed library.
 
 ---
 
-## 🏗️ Getting Started 🧪🗒️🛫
+## 🛫 Getting Started: Your First Server
 
-### Example
+The following example demonstrates a simple server with global middleware, a GET route that returns JSON, and a POST route.
 
 ```cpp
 #include "httpserver.h"
-#include "request.h"
-#include "middlewares.h"
+#include "middlewares.h" // For JsonBodyParser
+#include "json.h"        // For JSONValue
+
+#include <iostream>
 
 int main() {
-  HttpServer server;
+    // 1. Create an instance of the HttpServer
+    HttpServer server;
 
-  // Middleware that will run globally in the order in which they are mentioned in the code
-  server.use(JsonBodyParser);
-  server.use(UrlencodedBodyParser);
+    // 2. Register global middleware. These run for every request.
+    // The JsonBodyParser will automatically parse JSON bodies into req.body.
+    server.use(JsonBodyParser);
 
-  // GET API End point on the path /user
-  server.Get("/user", {}, [](Req &req, Res &res) {
-    JSONValue::Object user{{"name", "John"}, {"details", JSONValue::Object{
-      {"age", 30.0},
-      {"hobbies", JSONValue::Array{"coding", "gaming"}
-    }}};
-    res.json(JSONValue(user))->status(200);
-  });
+    // 3. Define a GET route
+    server.Get("/user", [](Request& req, Response& res) {
+        JSONValue::Object user;
+        user["name"] = "John Doe";
+        user["email"] = "john.doe@example.com";
+        user["hobbies"] = JSONValue::Array{"C++", "Gaming", "Hiking"};
 
-  // POST API end point on the path /
-  server.Post("/", {}, [](Request &req, Response &res) {
-    res.send("Hello world!")->status(200);
-  });
+        res.status(200).json(user);
+    });
 
-  // Setting number of worker threads to 4 (default 1)
-  server.setThreads(4);
+    // 4. Define a POST route to create a new item
+    server.Post("/items", [](Request& req, Response& res) {
+        // Assuming JsonBodyParser ran, req.body contains the parsed data
+        try {
+            std::string itemName = req.body["itemName"].asString();
+            std::cout << "New item created: " << itemName << std::endl;
+            res.status(201).send("Item created successfully!");
+        } catch (const std::exception& e) {
+            res.status(400).send("Bad Request: Missing 'itemName'");
+        }
+    });
 
-  // Initializing server
-  server.initServer(AF_INET, SOCK_STREAM, IPPROTO_TCP, 9000);
+    // 5. Configure the server settings
+    server.setThreads(4); // Use 4 worker threads
 
-  // Making server listen
-  server.serverListen();
+    // 6. Initialize and start the server on port 9000
+    // This function is blocking and will run until the program is terminated.
+    try {
+        server.initServer(9000, []() {
+            std::cout << "Server is running on port 9000..." << std::endl;
+        });
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Error initializing server: " << e.what() << std::endl;
+        return 1;
+    }
 
-  getchar();
-  return 0;
+    return 0;
 }
 ```
 
 ---
 
-## 📜 API Documentation 📘📚🧾
+## 📘 API Reference
 
-### HttpServer Methods
+### The `HttpServer` Class
 
-- 🔹 **use(middleware)**: Add a middleware function to all routes
-- 🔹 **Get/Post(path, middlewareList, handler)**: Register a route with optional middleware
-- 🔹 **setThreads(int)**: Set number of worker threads
-- 🔹 **initServer(domain, type, protocol, port)**: Initializes the server socket
-- 🔹 **serverListen(socket)**: Starts accepting and handling requests
+This is the main class for configuring and running your web server.
+
+-   `use(middleware)`
+    Adds a global middleware that will be executed for every incoming request, in the order it was added.
+    -   **`middleware`**: A function with the signature `void(Request&, Response&, long long& next)`.
+
+-   `setThreads(unsigned int count)`
+    Sets the number of worker threads in the thread pool. Defaults to 1.
+    -   **`count`**: The number of threads to handle requests concurrently. A good starting point is `std::thread::hardware_concurrency()`.
+
+-   `initServer(int port, callback, ...)`
+    Initializes all server components (sockets, IOCP, threads) and binds to the specified port. This is a **blocking call** that starts the server's main event loop.
+    -   **`port`**: The network port to listen on (e.g., `8080`).
+    -   **`callback`**: An optional `std::function<void()>` that is executed once the server is successfully initialized and ready to accept connections.
+
+-   `Get(path, middlewares, handler)` / `Post(...)` / `Put(...)` / `Patch(...)` / `Delete(...)`
+    Registers a handler for a specific HTTP method and path. See the [Routing](#routing) section for details.
+
+### Routing
+
+Boltpp supports static, parameterized, and query-based routes.
+
+-   **Static Routes**: Match an exact path.
+    ```cpp
+    server.Get("/about", ...);
+    ```
+
+-   **Parameterized Routes**: Use the `:param` syntax to capture dynamic segments of a URL.
+    ```cpp
+    // Matches /users/123, /users/abc, etc.
+    server.Get("/users/:id", [](Request& req, Response& res) {
+        // Access the captured parameter
+        std::string userId = req.pathParameters["id"];
+        res.send("Fetching user with ID: " + userId);
+    });
+    ```
+
+-   **Query Parameters**: Automatically parsed from the URL's query string.
+    ```cpp
+    // For a request to /search?q=boltpp&lang=cpp
+    server.Get("/search", [](Request& req, Response& res) {
+        std::string query = req.queryParameters["q"];      // "boltpp"
+        std::string lang = req.queryParameters["lang"];    // "cpp"
+        res.send("Searching for " + query + " in " + lang);
+    });
+    ```
 
 ### Middleware
 
-Middleware functions must match the following signature: 🪩🥷🔄
+Middleware are functions that execute in a sequence before the final route handler. They are ideal for cross-cutting concerns.
 
+-   **Signature**: `void(Request& req, Response& res, long long& next)`
+-   **Control Flow**:
+    -   `next++`: Call this to pass control to the next middleware in the chain. If you don't call it, the request handling stops.
+    -   `next = -1`: **Halt execution immediately.** No further middleware or the route handler will be called. You *must* send a response in the middleware if you do this.
+    -   `next += 2`: (Advanced) Skips the next middleware in the chain. Use with caution.
+
+-   **Example: Custom Logger Middleware**
+    ```cpp
+    void logger(Request& req, Response& res, long long& next) {
+        std::cout << "Request received: " << req.method << " " << req.url << std::endl;
+        next++; // Pass control to the next function
+    }
+
+    server.use(logger);
+    ```
+
+### The `Request` Object
+
+Contains all information about an incoming HTTP request.
+
+| Property          | Type                                                 | Description                                            |
+| ----------------- | ---------------------------------------------------- | ------------------------------------------------------ |
+| `method`          | `std::string`                                        | The HTTP method (e.g., "GET", "POST").                 |
+| `url`             | `std::string`                                        | The full original URL, including path and query string. |
+| `path`            | `std::string`                                        | The path portion of the URL, without the query string. |
+| `headers`         | `std::unordered_map<std::string, std::string>`       | A map of all HTTP request headers.                     |
+| `pathParameters`  | `std::unordered_map<std::string, std::string>`       | Key-value pairs of captured route parameters.          |
+| `queryParameters` | `std::unordered_map<std::string, std::string>`       | Key-value pairs from the URL query string.             |
+| `payload`         | `std::string`                                        | The raw, unparsed request body.                        |
+| `body`            | `JSONValue`                                          | The parsed request body (if a parser middleware ran).  |
+
+### The `Response` Object
+
+Used to construct and send the HTTP response back to the client. Methods are chainable.
+
+| Method                    | Return Type | Description                                                              |
+| ------------------------- | ----------- | ------------------------------------------------------------------------ |
+| `status(int code)`        | `Response&` | Sets the HTTP status code (e.g., `200`, `404`).                            |
+| `send(std::string_view)`  | `Response&` | Sets the response body as plain text and sets `Content-Type: text/plain`. |
+| `json(const JSONValue&)`  | `Response&` | Stringifies the `JSONValue` and sets `Content-Type: application/json`.     |
+| `setHeader(key, value)`   | `Response&` | Sets a custom HTTP response header.                                      |
+
+**Example of Chaining:**
 ```cpp
-void middleware(Request &req, Response &res, long long &next);
-```
-
-Call `next++` to pass control to the next middleware/handler.
-
-Additionally if you want to you can do something like `next += 2` or `next += 3` upto if you want to skip some middleware in the chain as per your logic.
-
-Example:
-
-- `next += 2` will skip the middleware right next in the chain
-- `next += 3` will skip the 2 middlewares after it in the chain
-
-Set `next = -1` to halt the control flow of middleware (Beware to set some response otherwise empty response will be sent to client as after this route handler won't be executed).
-
-### Request class 📨📥🔍
-
-- 🔹 `payload`: Raw request body string
-- 🔹 `body`: JSONValue parsed object (JSON or URL-encoded)
-- 🔹 `headers`: `std::unordered_map<std::string, std::string>`
-- 🔹 `method`: HTTP method (GET, POST, etc.)
-- 🔹 `url`: Request URL
-- 🔹 `path`: Path at which request arrived
-
-### Response class 📤🧞✅
-
-- 🔹 `send(string)`: Send plain text response
-- 🔹 `json(JSONValue)`: Send JSON response
-- 🔹 `status(int)`: Set HTTP status code
-- 🔹 `header(key, val)`: Set a response header
-
-### Creating API End points
-
-In order to create an API end point you can use `.Get()`, `.Post()`, `.Patch()`, `.Put()`, `.Delete()` from the HttpServer instance you created (Refer to `test/sample.cpp`).
-
-Function signature for each method will be the same. Here for example I'll demonstrate creating a `POST` method
-
-**Function Signature** : `httpServer.Post(std::string path, std::vector<std::function<void(Request&, Response&, long long&)>> middlewares, std::function<void(Request&, Response&)> handler)`
-
-Seems complicated but let's break it down in simple terms.
-
-- `std::string path` : Is the path at which you want your API End point.
-  - Ofcourse you can also have path parameters in it
-  - Example : `"/user/:id"` defines a path parameter `id` and now a request coming at `/user/123` will automatically be parsed and `id` will have value `123` which you can access by `pathParameter` attribute in the request object
-  - There is also support for query parameters which are again also accessible by `queryParameter` attribute in the request object.
-- `std::vector<std::function<void(Request&, Response&, long long&)>> middlewares` : These will be your route sepcific middlewares which will be executed right before dispatching the request to the handler. Let's break down its syntax as well
-  - `std::function<void(Request&, Response&, long long&)>` : This is the lamba function in which it will have arguments as a reference to request object(`Request&`), reference to response object(`Response&`) and reference to next(`long long&`) (Don't worry you won't have to create request or response objects or next variables on your own all of that is handled internally).
-- `std::function<void(Request&, Response&)> handler` : This is the handler for your route, where you will add whatever processing you need to do for that request. Again this is a lambda function with arguments as Reference to Request object(`Request&`) and reference to response object(`Response&`) (Again you don't have to declare them it will all be handled internally).
-
----
-
-## 🪧 JSONValue Utilities 🧠📄🔎
-
-The JSON parser is hand-built to support nested objects and arrays with ease. 🧬📚💡
-
-### Construct JSON
-
-```cpp
-JSONValue user = JSONValue::Object{
-  {"name", "Alice"},
-  {"age", 25.0},
-  {"tags", JSONValue::Array{"dev", "c++"}}
-};
-```
-
-- #### NOTE
-
-  ```cpp
-  JSONValue user;
-  user["name"] = "Alex";
-  ```
-
-  - This is invalid because default constructor for a JSONValue object initializes it to be null, so accessing a field `user["name"]` in that null would throw an exception.
-
-  - In order to do it you can follow 2 ways
-    - 1st : **Initialize the JSONValue object with your desired type via constructor**
-
-      ```cpp
-      JSONValue json(JSONValue::Object);
-      json["name"] = "Alex";
-      ```
-
-      ```cpp
-      JSONValue json(JSONValue::Array{30, 10});
-      json[1] = 20;
-      ```
-
-    - 2nd : **Assign the object a value of your desired type after declaration**
-
-      ```cpp
-      JSONValue json;
-      json = JSONValue::Object{
-        {"name", "Alex"},
-        {"hobbies", JSONValue::Array{"coding", "gaming"}}
-      };
-      ```
-
-  If you try to access a field in json object which doesn't corresponds to its type it will throw an error.
-
-  Example:
-  
-  ```cpp
-  // Invalid as json object of type array and accessing a field via string implies you are trying to access like an object
-  JSONValue json(JSONValue::Array{});
-  json["name"];
-  ```
-
-  ```cpp
-  // Again invalid as in order to access a field in an object of type object, string keys should be used
-  JSONValue json(JSONValue::Object{});
-  json[1];
-  ```
-
-### Access JSON Fields
-
-```cpp
-std::string name = user["name"].asString();
-double age = user["age"].asNumber();
-```
-
-**NOTE** : `user["name"]` would return a reference to a JSONValue object stored in that field, in order to access value inside that field, use the helper function `user["name"].asString()`.
-
-**NOTE** : If `user["name"]` contains string value type json object, and if you use `user["name"].asNumber()`. This will throw an exception as `.asNumber()` expects the object with which it is called to contain a double value. So use the helper function access value for the matching type.
-
-### Stringify JSON
-
-```cpp
-std::string str = user.stringify();
+res.status(404)
+   .setHeader("X-Custom-Header", "Error")
+   .send("Not Found");
 ```
 
 ---
 
-## 🌟 Advantages over Other Frameworks 🏋️🧰💯
+## 📄 Working with JSON
 
-| Feature        | Boltpp   | Crow         | Drogon       |
-| -------------- | -------- | ------------ | ------------ |
-| Language       | C++17    | C++11        | C++14+       |
-| Routing        | Yes      | Yes          | Yes          |
-| Middleware     | Yes      | Yes          | Yes          |
-| JSON Parsing   | Built-in | External     | Built-in     |
-| Multithreading | Yes      | Yes          | Yes          |
-| IO Model       | IOCP     | epoll/kqueue | epoll        |
-| Simplicity     | ⭐⭐⭐⭐⭐    | ⭐⭐⭐          | ⭐⭐⭐⭐         |
-| Dependencies   | None     | Boost (opt)  | libpqxx etc. |
-| Compile Time   | Fast     | Medium       | Heavy        |
+Boltpp includes a powerful, type-safe `JSONValue` class for handling JSON data.
+
+### Creating a `JSONValue`
+
+Use initializers for clear and concise construction.
+
+```cpp
+JSONValue::Object user; // Creates a JSON object
+user["name"] = "Alice";
+user["age"] = 30.0;
+user["isStudent"] = false;
+user["courses"] = JSONValue::Array{"History", "Math"};
+```
+
+### Modifying a `JSONValue`
+
+A default-constructed `JSONValue` is `null`. To use it as an object or array, you must first assign it the correct type.
+
+```cpp
+// Method 1: Initialize with the desired type
+JSONValue data(JSONValue::Object);
+data["key"] = "value"; // Correct
+
+// Method 2: Assign an object or array to it
+JSONValue items;
+items = JSONValue::Array{}; // Now it's an array
+items = "First Item";     // This is now an error, as array is empty, and operator[] doesn't emplace
+```
+*NOTE:* `operator[]` for arrays in `JSONValue` does not `emplace_back`, it only provides access.
+
+### Accessing Data (Type-Safe)
+
+Use the `.asType()` methods to retrieve values. Accessing a value with the wrong type will throw a `json_type_error` exception.
+
+```cpp
+try {
+    std::string name = user["name"].asString();
+    double age = user["age"].asDouble();
+    bool isStudent = user["isStudent"].asBool();
+} catch (const json_type_error& e) {
+    std::cerr << "JSON type error: " << e.what() << std::endl;
+}
+```
+
+### Stringifying a `JSONValue`
+
+Convert a `JSONValue` object into a standard JSON string.
+
+```cpp
+std::string jsonString = user.stringify();
+// {"name":"Alice","age":30.0,"isStudent":false,"courses":["History","Math"]}
+```
 
 ---
 
-## 🚫 Limitations (To Be Improved) 🗱️⚠️🔧
+## 📊 Feature Comparison
 
-- 🔹 No WebSocket or HTTP/2 support yet
-- 🔹 Windows-specific IOCP implementation (POSIX epoll/kqueue planned)
-- 🔹 Limited error handling APIs
-- 🔹 No TLS support (planned)
+| Feature             | Boltpp                                  | Crow                               | Drogon                            |
+| ------------------- | --------------------------------------- | ---------------------------------- | --------------------------------- |
+| **Language**        | C++17                                   | C++11                              | C++17                             |
+| **Primary I/O Model** | **IOCP (Windows)**                      | ASIO (epoll/kqueue)                | epoll                             |
+| **JSON Parsing**    | **Built-in, Type-Safe**                 | External (e.g., nlohmann)          | Built-in                          |
+| **Dependencies**    | **None**                                | Boost (optional)                   | libpqxx, json-cpp, etc.           |
+| **Simplicity/API**  | ⭐⭐⭐⭐⭐ (Express.js-like)                | ⭐⭐⭐⭐ (Fluent)                      | ⭐⭐⭐ (Complex, feature-rich)    |
+| **Build Speed**     | **Very Fast**                           | Medium                             | Slow (heavy template usage)       |
 
 ---
 
-## 📧 Contact 💬👤📨
+## 🗺️ Project Roadmap
 
-For suggestions, issues, or collaboration:
+Boltpp is actively developing. Future enhancements include:
 
-- 🔹 Email: [sgobind577@gmail.com]
-- 🔹 LinkedIn: [https://www.linkedin.com/in/gobind-singh-maan-2548a5157/]
+-   ✅ **Cross-Platform Support**: Implement `epoll` (Linux) and `kqueue` (macOS) for the I/O backend.
+-   ✅ **HTTPS/TLS Support**: Integrated TLS for secure communication.
+-   ✅ **WebSocket Support**: Enable real-time, bidirectional communication.
+-   ✅ **HTTP/2 Support**: Improve performance with the latest HTTP standard.
+-   ✅ **Enhanced Error Handling**: More granular error types and better diagnostics.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! If you have suggestions, find a bug, or want to add a feature, please feel free to open an issue or submit a pull request.
+
+---
+
+## 📧 Contact
+
+For questions or collaboration, please reach out:
+
+-   **Email**: [sgobind577@gmail.com]
+-   **LinkedIn**: [https://www.linkedin.com/in/gobind-singh-maan-2548a5157/]
