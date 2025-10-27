@@ -56,6 +56,7 @@ std::string HttpServer::PathTree::getNormalisedPath(const std::string &path) {
 
   std::string normalisedPath;
   normalisedPath.reserve(path.size());
+  normalisedPath.push_back('/');
 
   for(const auto &segment : segments) {
     if(node->children.find(segment) != node->children.end()) {
@@ -194,24 +195,6 @@ std::string HttpServer::makeHttpResponse(const Response &res) {
   response.append(payload);
   return response;
 }
-
-// char HttpServer::urlEncodingCharacter(std::string_view specialSequence) {
-//   if(specialSequence[0] != '%' || specialSequence.length() != 3)
-//     return '\0';
-//   if(specialSequence.compare("%20") == 0)
-//     return ' ';
-//   else if(specialSequence.compare("%26") == 0)
-//     return '&';
-//   else if(specialSequence.compare("%3D") == 0)
-//     return '=';
-//   else if(specialSequence.compare("%3F") == 0)
-//     return '?';
-//   else if(specialSequence.compare("%23") == 0)
-//     return '#';
-//   else if(specialSequence.compare("%25") == 0)
-//     return '%';
-//   return '\0';
-// }
 
 static inline int hexVal(char c) {
   if (c >= '0' && c <= '9') return c - '0';
@@ -368,7 +351,6 @@ Request HttpServer::parseHttpRequest(const std::string &raw, const SOCKET &clien
     req.payload.reserve(cLength);
   }
 
-  // Step 4: Payload
   if (pos < request.size())
     req.payload = raw.substr(pos);
 

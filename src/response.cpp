@@ -46,7 +46,7 @@ Response& Response::send(const std::string_view dataView) {
  * @param value The header value.
  * @return Response* Pointer to the current response for chaining.
  */
-Response& Response::setHeader(const std::string key, const std::string value) {
-  headers[key] = value;
+Response& Response::setHeader(const std::string_view key, const std::string_view value) {
+  headers[std::string(key)] = value;
   return *this;
 }

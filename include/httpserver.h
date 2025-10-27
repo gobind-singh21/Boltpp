@@ -22,6 +22,7 @@
  * and dispatches the request to the appropriate handler. It also creates and manages worker threads.
  */
 class HttpServer {
+private:
   static const int contentLengthStringLength = 16;
   const char* contentLength = "Content-Length:";
 

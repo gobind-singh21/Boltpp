@@ -1,4 +1,4 @@
-#include <stdexcept>
+#include "errors.h"
 #include <charconv>
 #include "json.h"
 
@@ -43,12 +43,12 @@ JSONValue& JSONValue::operator=(const JSONValue json) {
   return *this;
 }
 
-JSONValue& JSONValue::operator=(const JSONValue::Object object) {
+JSONValue& JSONValue::operator=(const JSONValue::Object &object) {
   value = object;
   return *this;
 }
 
-JSONValue& JSONValue::operator=(const JSONValue::Array array) {
+JSONValue& JSONValue::operator=(const JSONValue::Array &array) {
   value = array;
   return *this;
 }
@@ -63,7 +63,7 @@ JSONValue& JSONValue::operator=(const char* str) {
   return *this;
 }
 
-JSONValue& JSONValue::operator=(const std::string str) {
+JSONValue& JSONValue::operator=(const std::string &str) {
   value = str;
   return *this;
 }
@@ -88,16 +88,16 @@ JSONValue& JSONValue::operator[](const char* str) {
     it = object->find(key);
     return it->second;
   } else {
-    throw std::runtime_error("Invalid [std::string] operator on a non object value");
+    throw json_type_error("Invalid [std::string] operator on a non object value");
   }
 }
 
-JSONValue& JSONValue::operator[](const std::string key) {
+JSONValue& JSONValue::operator[](const std::string& key) {
   if(JSONValue::Object* object = std::get_if<JSONValue::Object>(&this->value)) {
     auto [it, _] = object->try_emplace(key, nullptr);
     return it->second;
   } else {
-    throw std::runtime_error("Invalid [std::string] operator on a non object value");
+    throw json_type_error("Invalid [std::string] operator on a non object value");
   }
 }
 
@@ -105,11 +105,11 @@ JSONValue& JSONValue::operator[](const int index) {
   if(JSONValue::Array* array = std::get_if<JSONValue::Array>(&this->value)) {
     int length = array->size();
     if(index >= length) {
-      throw std::runtime_error("Out of bounds index for array value");
+      throw std::out_of_range("Out of bounds index for array value");
     }
     return (*array)[index];
   } else {
-    throw std::runtime_error("Used [int] operator on a non array value");
+    throw json_type_error("Used [int] operator on a non array value");
   }
 }
 
@@ -117,7 +117,7 @@ double& JSONValue::asDouble() {
   if(double* number = std::get_if<double>(&this->value)) {
     return *number;
   } else {
-    throw std::runtime_error("asDouble() used on a non double type JSONValue");
+    throw json_type_error("asDouble() used on a non double type JSONValue");
   }
 }
 
@@ -125,7 +125,7 @@ std::string& JSONValue::asString() {
   if(std::string* str = std::get_if<std::string>(&this->value)) {
     return *str;
   } else {
-    throw std::runtime_error("asString() used on a non std::string type JSONValue");
+    throw json_type_error("asString() used on a non std::string type JSONValue");
   }
 }
 
@@ -133,7 +133,7 @@ bool& JSONValue::asBool() {
   if(bool* boolean = std::get_if<bool>(&this->value)) {
     return *boolean;
   } else {
-    throw std::runtime_error("asBool() used on a non boolean type JSONValue");
+    throw json_type_error("asBool() used on a non boolean type JSONValue");
   }
 }
 
@@ -141,7 +141,7 @@ std::nullptr_t& JSONValue::asNull() {
   if(std::nullptr_t* null = std::get_if<std::nullptr_t>(&this->value)) {
     return *null;
   } else {
-    throw std::runtime_error("asNull() used on a non null type JSONValue");
+    throw json_type_error("asNull() used on a non null type JSONValue");
   }
 }
 
@@ -174,7 +174,7 @@ JSONValue JSONParser::parseBoolean() {
     return JSONValue(false);
   }
   else
-    throw std::runtime_error("Unexpected value caught, expected boolean");
+    throw json_parse_error("Unexpected value caught, expected boolean");
 }
 
 /**
@@ -186,7 +186,7 @@ JSONValue JSONParser::parseNull() {
   if(pos <= size - 4 && get() == 'n' && get() == 'u' && get() == 'l' && get() == 'l')
     return JSONValue(nullptr);
   else
-    throw std::runtime_error("Unexpected value caught, expected 'null'");
+    throw json_parse_error("Unexpected value caught, expected 'null'");
 }
 
 /**
@@ -196,18 +196,18 @@ JSONValue JSONParser::parseNull() {
  */
 JSONValue JSONParser::parseString() {
   if(get() != '"')
-    throw std::runtime_error("Expected '\"' at beginning of the string");
+    throw json_parse_error("Expected '\"' at beginning of the string");
   std::string output;
   output.reserve(1000);
   while(true) {
     if(pos >= size)
-      throw std::runtime_error("Unterminated string");
+      throw json_parse_error("Unterminated string");
     char c = get();
     if(c == '"')
       break;
     if(c == '\\') {
       if(pos >= size)
-        throw std::runtime_error("Invalid escape sequence in string");
+        throw json_parse_error("Invalid escape sequence in string");
       char esc = get();
       switch(esc) {
         case '"': output.push_back('"'); break;
@@ -219,7 +219,7 @@ JSONValue JSONParser::parseString() {
         case 'r': output.push_back('r'); break;
         case 't': output.push_back('t'); break;
         default:
-          throw std::runtime_error("Invalid escape character in string");
+          throw json_parse_error("Invalid escape character in string");
       }
     } else
       output.push_back(c);
@@ -240,7 +240,7 @@ JSONValue JSONParser::parseNumber() {
   std::string_view numberView(start, &input[pos] - start);
   double num;
   auto res = std::from_chars(numberView.data(), numberView.data() + numberView.size(), num);
-  if (res.ec != std::errc()) throw std::runtime_error("Invalid number");
+  if (res.ec != std::errc()) throw json_parse_error("Invalid number");
   return JSONValue(num);
 }
 
@@ -259,16 +259,16 @@ JSONValue JSONParser::parseObject() {
     return JSONValue(obj);
   }
   if(peek() != '"')
-    throw std::runtime_error("Expected \" as starting of key in JSON object");
+    throw json_parse_error("Expected \" as starting of key in JSON object");
   else {
     while(true) {
       JSONValue keyObj = parseString(), value;
       if(!std::holds_alternative<std::string>(keyObj.value))
-        throw std::runtime_error("Object key is not a string");
+        throw json_parse_error("Object key is not a string");
       std::string key = std::get<std::string>(keyObj.value);
       skipWhitespaces();
       if(get() != ':')
-        throw std::runtime_error("Missing : after key value");
+        throw json_parse_error("Missing : after key value");
       else {
         skipWhitespaces();
         char c = peek();
@@ -290,7 +290,7 @@ JSONValue JSONParser::parseObject() {
           case '8':
           case '9':
           case '0': value = parseNumber(); break;
-          default: throw std::runtime_error(std::string("Unexpected symbol caught: ") + c);
+          default: throw json_parse_error(std::string("Unexpected symbol caught: ") + c);
         }
       }
       obj[key] = value;
@@ -301,12 +301,12 @@ JSONValue JSONParser::parseObject() {
       else if(c == ',') {
         skipWhitespaces();
         if(peek() == '}')
-          throw std::runtime_error("Trailing commas not allowed in JSON object");
+          throw json_parse_error("Trailing commas not allowed in JSON object");
         if(peek() != '"')
-          throw std::runtime_error("Expected \" as starting of key in JSON object");
+          throw json_parse_error("Expected \" as starting of key in JSON object");
       }
       else
-        throw std::runtime_error(std::string("Expected '}' or ',' but encountered unexpected symbol: ") + c);
+        throw json_parse_error(std::string("Expected '}' or ',' but encountered unexpected symbol: ") + c);
     }
   }
   return JSONValue(obj);
@@ -347,7 +347,7 @@ JSONValue JSONParser::parseArray() {
       case '7':
       case '8':
       case '9': value = parseNumber(); break;
-      default: throw std::runtime_error(std::string("Unexpected symbol caught: ") + c);
+      default: throw json_parse_error(std::string("Unexpected symbol caught: ") + c);
     }
     skipWhitespaces();
     c = get();
@@ -359,10 +359,10 @@ JSONValue JSONParser::parseArray() {
       arr.emplace_back(value);
       skipWhitespaces();
       if(peek() == ']')
-        throw std::runtime_error("Trailing commas not allowed in JSON arrays");
+        throw json_parse_error("Trailing commas not allowed in JSON arrays");
     }
     else
-      throw std::runtime_error(std::string("Unexpected symbol caught: ") + c);
+      throw json_parse_error(std::string("Unexpected symbol caught: ") + c);
   }
   return JSONValue(arr);
 }
@@ -396,11 +396,11 @@ JSONValue JSONParser::parse() {
     case '7':
     case '8':
     case '9': json = parseNumber(); break;
-    default: throw std::runtime_error(std::string("Unexpected symbol caught: ") + c);
+    default: throw json_parse_error(std::string("Unexpected symbol caught: ") + c);
   }
   skipWhitespaces();
   if(pos >= size)
     return json;
   else
-    throw std::runtime_error("Invalid JSON string value");
+    throw json_parse_error("Invalid JSON string value");
 }

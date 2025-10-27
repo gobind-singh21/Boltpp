@@ -90,5 +90,5 @@ public:
    * @param value Header value.
    * @return Response reference to the current response.
    */
-  Response& setHeader(const std::string key, const std::string value);
+  Response& setHeader(const std::string_view key, const std::string_view value);
 };

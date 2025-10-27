@@ -88,7 +88,7 @@ public:
    * @param object The object to assign.
    * @return JSONValue& Reference to the assigned object.
    */
-  JSONValue& operator=(const JSONValue::Object object);
+  JSONValue& operator=(const JSONValue::Object &object);
 
   /**
    * @brief Assignment operator for JSON array.
@@ -96,7 +96,7 @@ public:
    * @param array The array to assign.
    * @return JSONValue& Reference to the assigned object.
    */
-  JSONValue& operator=(const JSONValue::Array array);
+  JSONValue& operator=(const JSONValue::Array &array);
 
   /**
    * @brief Assignment operator for a number.
@@ -120,7 +120,7 @@ public:
    * @param str The string to assign.
    * @return JSONValue& Reference to the assigned object.
    */
-  JSONValue& operator=(const std::string str);
+  JSONValue& operator=(const std::string &str);
 
   /**
    * @brief Assignment operator for a boolean value.
@@ -152,7 +152,7 @@ public:
    * @param key The key.
    * @return JSONValue& Reference to the value.
    */
-  JSONValue& operator[](const std::string key);
+  JSONValue& operator[](const std::string& key);
 
   /**
    * @brief Accesses an element of a JSON array using an integer index.
