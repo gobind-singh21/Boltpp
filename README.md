@@ -120,44 +120,49 @@ Then, in your project's `CMakeLists.txt`, use `find_package` to locate and link 
 The following example demonstrates a simple server with global middleware, a GET route that returns JSON, and a POST route.
 
 ```cpp
-#include "httpserver.h"
-#include "middlewares.h" // For JsonBodyParser
-#include "json.h"        // For JSONValue
-
 #include <iostream>
+
+#include "httpserver.h"
+#include "json.h"
 
 int main() {
     // 1. Create an instance of the HttpServer
     HttpServer server;
 
-    // 2. Register global middleware. These run for every request.
-    // The JsonBodyParser will automatically parse JSON bodies into req.body.
-    server.use(JsonBodyParser);
-
-    // 3. Define a GET route
-    server.Get("/user", [](Request& req, Response& res) {
-        JSONValue::Object user;
-        user["name"] = "John Doe";
-        user["email"] = "john.doe@example.com";
-        user["hobbies"] = JSONValue::Array{"C++", "Gaming", "Hiking"};
-
-        res.status(200).json(user);
+    // 2. Configure Cross-Origin Resource Sharing (CORS)
+    server.createCorsConfig([](CorsConfig &config) {
+        config.allowedOrigins = {"*"}; // Allow requests from any origin
+        config.allowedMethods = {"POST", "PUT", "GET", "DELETE", "OPTIONS"};
+        config.withCredentials = false;
     });
 
-    // 4. Define a POST route to create a new item
-    server.Post("/items", [](Request& req, Response& res) {
-        // Assuming JsonBodyParser ran, req.body contains the parsed data
-        try {
-            std::string itemName = req.body["itemName"].asString();
-            std::cout << "New item created: " << itemName << std::endl;
-            res.status(201).send("Item created successfully!");
-        } catch (const std::exception& e) {
-            res.status(400).send("Bad Request: Missing 'itemName'");
+    // 3. Register global middleware. These run for every request in order.
+    server.use([](Request &request, Response &response, long long &next) {
+        std::cout << "Request received for URL: " << request.url << std::endl;
+        next++; // Pass control to the next middleware
+    });
+    server.use([](Request &request, Response &response, long long &next) {
+        if (!request.payload.empty()) {
+            std::cout << "Request payload: " << request.payload << std::endl;
         }
+        next++;
     });
 
-    // 5. Configure the server settings
-    server.setThreads(4); // Use 4 worker threads
+    // 4. Define a GET route that returns JSON data
+    server.Get("/user", [](Request &request, Response &response) {
+        JSONValue::Object userInfo;
+        userInfo["name"] = "Alex";
+        userInfo["details"] = JSONValue::Object{
+            {"age", 30.0},
+            {"height", 160.0},
+        };
+        response.status(200).json(userInfo);
+    });
+
+    // 5. Define a root GET route
+    server.Get("/", [](Request &request, Response &response) {
+        response.status(200).send("Hello World!");
+    });
 
     // 6. Initialize and start the server on port 9000
     // This function is blocking and will run until the program is terminated.
@@ -279,6 +284,44 @@ res.status(404)
    .setHeader("X-Custom-Header", "Error")
    .send("Not Found");
 ```
+---
+
+## 🔒 Configuring CORS
+
+Boltpp provides built-in support for CORS, which is essential for allowing web applications from different domains to securely access your API.
+
+### `server.createCorsConfig(configurer)`
+
+This method accepts a lambda function that gives you mutable access to a `CorsConfig` object, allowing you to define your server's CORS policy.
+
+```cpp
+server.createCorsConfig([](CorsConfig& config) {
+    // Allow requests from any origin
+    config.allowedOrigins = {"*"};
+
+    // Or, for better security, specify allowed origins explicitly
+    // config.allowedOrigins = {"http://localhost:3000", "https://my-frontend.com"};
+
+    // Specify the HTTP methods clients are allowed to use
+    config.allowedMethods = {"GET", "POST", "PUT", "DELETE", "OPTIONS"};
+
+    // Specify the headers clients can include in their requests
+    config.allowedHeaders = {"Content-Type", "Authorization"};
+
+    // Set to true to allow cookies and credentials to be sent with requests
+    config.withCredentials = false;
+});
+```
+
+### `CorsConfig` Fields
+
+-   🔹 **`allowedOrigins`**: An `std::unordered_set<std::string>` of origins permitted to make requests. Use `"*"` to allow any origin.
+-   🔹 **`allowedMethods`**: An `std::unordered_set<std::string>` of allowed HTTP methods (e.g., `"GET"`, `"POST"`).
+-   🔹 **`allowedHeaders`**: An `std::unordered_set<std::string>` of HTTP headers that the client may send.
+-   🔹 **`exposedHeaders`**: An `std::unordered_set<std::string>` of response headers that the browser is allowed to access.
+-   🔹 **`withCredentials`**: A `bool`. If `true`, it allows browsers to send credentials (like cookies).
+
+**Important Note**: For security reasons, if `withCredentials` is set to `true`, you **cannot** use `"*"` for `allowedOrigins`. You must specify the exact origin(s).
 
 ---
 
