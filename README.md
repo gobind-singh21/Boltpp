@@ -383,19 +383,6 @@ std::string jsonString = user.stringify();
 
 ---
 
-## 📊 Feature Comparison
-
-| Feature             | Boltpp                                  | Crow                               | Drogon                            |
-| ------------------- | --------------------------------------- | ---------------------------------- | --------------------------------- |
-| **Language**        | C++17                                   | C++11                              | C++17                             |
-| **Primary I/O Model** | **IOCP (Windows)**                      | ASIO (epoll/kqueue)                | epoll                             |
-| **JSON Parsing**    | **Built-in, Type-Safe**                 | External (e.g., nlohmann)          | Built-in                          |
-| **Dependencies**    | **None**                                | Boost (optional)                   | libpqxx, json-cpp, etc.           |
-| **Simplicity/API**  | ⭐⭐⭐⭐⭐ (Express.js-like)                | ⭐⭐⭐⭐ (Fluent)                      | ⭐⭐⭐ (Complex, feature-rich)    |
-| **Build Speed**     | **Very Fast**                           | Medium                             | Slow (heavy template usage)       |
-
----
-
 ## 🗺️ Project Roadmap
 
 Boltpp is actively developing. Future enhancements include:
