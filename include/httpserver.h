@@ -100,10 +100,19 @@ private:
     std::string rawRequest;
   };
 
+  struct SocketResponse {
+    SOCKET socket;
+    Response response;
+    bool terminate_socket;
+  };
+
   PathTree registeredPaths;
-  std::queue<RequestPackage> requestQueue;
-  std::mutex queueMutex;
-  std::condition_variable queueCond;
+  std::queue<RequestPackage> incoming_request_queue;
+  std::queue<SocketResponse> outgoing_responses;
+  std::mutex incoming_request_mutex;
+  std::condition_variable incoming_request_variable;
+  std::mutex outgoing_response_mutex;
+  std::condition_variable outgoing_response_variable;
 
   HANDLE iocp;   ///< Handle to the IO Completion Port.
 
@@ -143,7 +152,7 @@ private:
    * @param res The response object.
    * @return std::string The complete HTTP response.
    */
-  static std::string makeHttpResponse(const Response &response);
+  static std::string makeHttpResponse(Response &response);
 
   /**
    * @brief Decodes a URL-encoded special sequence into its corresponding character.
@@ -151,7 +160,7 @@ private:
    * @param specialSequence The URL-encoded sequence.
    * @return char The decoded character.
    */
-  static char urlEncodingCharacter(std::string_view specialSequence);
+  // static char urlEncodingCharacter(std::string_view specialSequence);
 
   static std::string decodeUrl(std::string_view input);
 
@@ -180,15 +189,24 @@ private:
    * @return Request The parsed request.
    */
   static Request parseHttpRequest(const std::string &request, const SOCKET &clientSocket, PathTree &registeredPaths);
-
+  
   bool validateCors(Request &req);
-
+  
   /**
    * @brief Function executed by worker threads to handle IO completion events.
    */
   void workerThreadFunction();
-
+  
+  void responseDispatcherThread();
+  
   void receiverThreadFunction();
+  
+  /**
+   * @brief Starts listening for incoming connections.
+   * 
+   * @note After this control flow of your program won't go ahead
+   */
+  void serverListen();
   
 public:
   /**
@@ -215,14 +233,7 @@ public:
    *
    * @param threads The number of threads.
    */
-  void setThreads(unsigned int threads);
-
-  /**
-   * @brief Starts listening for incoming connections.
-   * 
-   * @note After this control flow of your program won't go ahead
-   */
-  void serverListen();
+  void setWorkerThreads(unsigned int threads);
   
   /**
    * @brief Initializes the server socket and starts the IO completion port.
@@ -236,6 +247,8 @@ public:
   void initServer(int port, std::function<void()> callback, int addressFamily, int type, int protocol);
 
   void initServer(int port, std::function<void()> callback);
+
+  void initServer(int port);
 
   /**
    * @brief Adds a global middleware function that applies to all routes.

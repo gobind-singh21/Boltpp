@@ -1,9 +1,11 @@
 #include <thread>
 #include <charconv>
-#include <stdexcept>
 #include <algorithm>
 #include <iostream>
+#include <fstream>
+#include <filesystem>
 
+#include "errors.h"
 #include "utils.h"
 #include "httpserver.h"
 
@@ -29,9 +31,8 @@ void HttpServer::PathTree::addPath(const std::string &path) {
 }
 
 std::unordered_map<std::string, std::string> HttpServer::PathTree::getPathParams(const std::string &path) {
-  auto segments = split(path, '/');
-  auto node = root;
-
+  std::vector<std::string> segments = split(path, '/');
+  std::shared_ptr<HttpServer::PathTree::Trie> node = root;
   std::unordered_map<std::string, std::string> params;
 
   for(const auto &segment : segments) {
@@ -156,43 +157,41 @@ std::string HttpServer::getStatusCodeWord(const int statusCode) {
   return "Not Found";
 }
 
-std::string HttpServer::makeHttpResponse(const Response &res) {
-  int statusCode = res.getStatusCode();
-  const std::string &payload = res.getPayload();
-
-  std::string response;
-  response.reserve(10240 + payload.length());
-
-  response.append(res.getProtocol());
-  response.push_back(' ');
-  response.append(std::to_string(statusCode));
-  response.push_back(' ');
-  response.append(getStatusCodeWord(statusCode));
-  response.append("\r\n");
-
-  if (res.headers.find("Content-Length") == res.headers.end()) {
-    response.append("Content-Length: ");
-    response.append(std::to_string(payload.size()));
-    response.append("\r\n");
+std::string makeHttpResponseHeader(Response &res) {
+  if(res.getIsFileResponse()) {
+    res.setHeader("Content-Length", std::to_string(std::filesystem::file_size(res.getFilePath())));
+  } else {
+    res.setHeader("Content-Length", std::to_string(res.getPayload().size()));
   }
 
-  if (res.headers.find("Content-Type") == res.headers.end()) {
-    response.append("Content-Type: text/plain; charset=UTF-8\r\n");
+  std::string headers_str;
+  headers_str.reserve(8192);
+  
+  headers_str.append(res.getProtocol());
+  headers_str.push_back(' ');
+  headers_str.append(std::to_string(res.getStatusCode()));
+  headers_str.append("\r\n");
+
+  if(res.headers.find("Connection") == res.headers.end()) {
+    headers_str.append("Connection: keep-alive\r\n");
   }
 
-  if (res.headers.find("Connection") == res.headers.end()) {
-    response.append("Connection: keep-alive\r\n");
+  for(const auto &it : res.headers) {
+    headers_str.append(it.first);
+    headers_str.append(": ");
+    headers_str.append(it.second);
+    headers_str.append("\r\n");
   }
 
-  for (const auto &it : res.headers) {
-    response.append(it.first);
-    response.append(": ");
-    response.append(it.second);
-    response.append("\r\n");
-  }
+  headers_str.append("\r\n");
+  return headers_str;
+}
 
-  response.append("\r\n");
-  response.append(payload);
+std::string HttpServer::makeHttpResponse(Response &res) {
+  std::string response = makeHttpResponseHeader(res);
+  if(!res.getIsFileResponse()) {
+    response.append(res.getPayload());
+  }
   return response;
 }
 
@@ -259,7 +258,7 @@ void HttpServer::parseQueryParameters(Request &req) {
       value = "";
     }
 
-    req.queryParameters[decodeUrl(key)] = decodeUrl(value);
+    req.query_parameters[decodeUrl(key)] = decodeUrl(value);
 
     if (pairEnd == queryStr.size()) break;
     queryStr = queryStr.substr(pairEnd + 1);
@@ -312,7 +311,7 @@ Request HttpServer::parseHttpRequest(const std::string &raw, const SOCKET &clien
   req.protocol = std::string(request.substr(protoStart, lineEnd - protoStart));
 
   parseQueryParameters(req);
-  req.pathParameters = registeredPaths.getPathParams(req.path);
+  req.path_parameters = registeredPaths.getPathParams(req.path);
 
   pos = lineEnd + 2;
 
@@ -406,10 +405,10 @@ void HttpServer::workerThreadFunction() {
   while (true) {
     RequestPackage task;
     {
-      std::unique_lock<std::mutex> lock(queueMutex);
-      queueCond.wait(lock, [&]() { return !requestQueue.empty(); });
-      task = requestQueue.front();
-      requestQueue.pop();
+      std::unique_lock<std::mutex> lock(incoming_request_mutex);
+      incoming_request_variable.wait(lock, [&]() { return !incoming_request_queue.empty(); });
+      task = incoming_request_queue.front();
+      incoming_request_queue.pop();
     }
     Request req = parseHttpRequest(task.rawRequest, task.socket, registeredPaths);
     if(req.payload == "Bad Request")
@@ -474,8 +473,9 @@ void HttpServer::workerThreadFunction() {
                 break;
               i++;
             }
-            if (i >= 0)
+            if (i >= 0) {
               route.handler(req, res);
+            }
           }
         }
       }
@@ -509,25 +509,68 @@ void HttpServer::workerThreadFunction() {
 
       res.send("CORS Policy Error: Origin or Method or headers not allowed");
     }
-    std::string response = makeHttpResponse(res);
-    send(task.socket, response.c_str(), response.size(), 0);
-    bool terminateSocket = false;
+    bool terminate_socket = false;
     if (req.headers.find("Connection") != req.headers.end()) {
       std::string connectionHeader = req.headers["Connection"];
       std::transform(connectionHeader.begin(), connectionHeader.end(), connectionHeader.begin(), ::tolower);
       if(connectionHeader.compare("close") == 0)
-        terminateSocket = true;
+        terminate_socket = true;
     }
-    if(terminateSocket)
-      closesocket(task.socket);
+    {
+      std::lock_guard<std::mutex> lock(outgoing_response_mutex);
+      outgoing_responses.push({task.socket, res, terminate_socket});
+    }
+    outgoing_response_variable.notify_one();
+  }
+}
+
+void HttpServer::responseDispatcherThread() {
+  while(true) {
+    SocketResponse outgoing_response;
+    {
+      std::unique_lock<std::mutex> queue_lock(outgoing_response_mutex);
+      outgoing_response_variable.wait(queue_lock, [&]() { return !outgoing_responses.empty(); });
+      outgoing_response = outgoing_responses.front();
+      outgoing_responses.pop();
+    }
+    Response &res = outgoing_response.response;
+    if(!res.getIsFileResponse()) {
+      std::string response_str = makeHttpResponse(res);
+      send(outgoing_response.socket, response_str.c_str(), response_str.size(), 0);
+    } else {
+      std::ifstream file(res.getFilePath(), std::ios::binary);
+      if(!file.is_open()) {
+        Response errorRes;
+        errorRes.status(404).send("File Not Found");
+        std::string errorResponseStr = makeHttpResponse(errorRes);
+        send(outgoing_response.socket, errorResponseStr.c_str(), errorResponseStr.size(), 0);
+      } else {
+        std::string headers = makeHttpResponseHeader(res);
+        send(outgoing_response.socket, headers.c_str(), headers.size(), 0);
+    
+        const size_t bufferSize = 8192;
+        std::vector<char> buffer(bufferSize);
+        while(file.read(buffer.data(), bufferSize)) {
+          if(send(outgoing_response.socket, buffer.data(), bufferSize, 0) == SOCKET_ERROR) {
+            break;
+          }
+        }
+    
+        if(file.gcount() > 0) {
+          send(outgoing_response.socket, buffer.data(), file.gcount(), 0);
+        }
+      }
+    }
+    if(outgoing_response.terminate_socket)
+      closesocket(outgoing_response.socket);
     else {
       PerIoData* ioData = new PerIoData();
-      ioData->socket = task.socket;
+      ioData->socket = outgoing_response.socket;
       ioData->wsabuff.buf = ioData->buffer;
       ioData->wsabuff.len = BUFFER_SIZE;
       ioData->receiving = true;
       DWORD flags = 0;
-      WSARecv(task.socket, &ioData->wsabuff, 1, nullptr, &flags, &ioData->overlapped, nullptr);
+      WSARecv(outgoing_response.socket, &ioData->wsabuff, 1, nullptr, &flags, &ioData->overlapped, nullptr);
     }
   }
 }
@@ -565,10 +608,10 @@ void HttpServer::receiverThreadFunction() {
       size_t receivedBodyLength = fullBuffer.size() - (headerEnd + 4);
       if (contentLength == 0 || receivedBodyLength >= contentLength) {
         {
-          std::lock_guard<std::mutex> lock(queueMutex);
-          requestQueue.push({ ioData->socket, fullBuffer });
+          std::lock_guard<std::mutex> lock(incoming_request_mutex);
+          incoming_request_queue.push({ ioData->socket, fullBuffer });
         }
-        queueCond.notify_one();
+        incoming_request_variable.notify_one();
         socketBuffers.erase(ioData->socket);
       } else {
         DWORD flags = 0;
@@ -606,7 +649,7 @@ void HttpServer::serverListen() {
   }
 }
 
-void HttpServer::setThreads(unsigned int threads) {
+void HttpServer::setWorkerThreads(unsigned int threads) {
   MAX_THREADS = threads;
 }
 
@@ -653,6 +696,8 @@ void HttpServer::initServer(int port, std::function<void()> callback = []() {}, 
   for(int i = 0; i < MAX_THREADS; i++)
     std::thread(&HttpServer::workerThreadFunction, this).detach();
   
+  std::thread(&HttpServer::responseDispatcherThread, this).detach();
+  
   std::thread(&HttpServer::receiverThreadFunction, this).detach();
 
   callback();
@@ -664,11 +709,10 @@ void HttpServer::initServer(int port, std::function<void()> callback = []() {}) 
   initServer(port, callback, AF_INET, SOCK_STREAM, IPPROTO_TCP);
 }
 
-/**
- * @brief Use this function to create a cors configuration for your backend service
- * @param configurer Lamba function which takes a CorsConfig object by reference as a parameter
- * @throws Runtime error if there is an origin "*" along with withCredentials as true
- */
+void HttpServer::initServer(int port) {
+  initServer(port, []() {}, AF_INET, SOCK_STREAM, IPPROTO_TCP);
+}
+
 void HttpServer::createCorsConfig(std::function<void(CorsConfig&)> configurer) {
   configurer(corsConfig);
   if(corsConfig.allowedOrigins.find("*") != corsConfig.allowedOrigins.end() && corsConfig.withCredentials)

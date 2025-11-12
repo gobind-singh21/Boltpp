@@ -15,6 +15,10 @@ class Response {
   int statusCode = 200;   ///< HTTP status code.
   std::string payload;    ///< Response payload.
   std::string protocol = "HTTP/1.1";   ///< HTTP protocol version.
+  std::string file_path;
+  bool isFileResponse = false;
+
+  static const std::string getMimeType(const std::string& extension);
 
 public:
   Response() {
@@ -29,6 +33,9 @@ public:
    * @param protocol The protocol string.
    */
   Response& setProtocol(const std::string protocol);
+
+  inline bool getIsFileResponse() const { return isFileResponse; }
+  inline const std::string& getFilePath() const { return file_path; }
 
   /**
    * @brief Gets the HTTP protocol version.
@@ -82,6 +89,10 @@ public:
    * @return Response reference to the current response.
    */
   Response& send(const std::string_view dataView);
+
+  Response& sendFile(const std::string_view file_path);
+
+  Response& download(const std::string_view file_path);
 
   /**
    * @brief Sets a header for the response.
