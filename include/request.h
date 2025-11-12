@@ -15,7 +15,7 @@ public:
   /**
    * @brief Default constructor initializes empty values.
    */
-  Request() : method(""), path(""), protocol(""), payload(""), queryParameters({}), headers({}) {}
+  Request() : method(""), path(""), protocol(""), payload(""), query_parameters({}), path_parameters({}), headers({}) {}
 
   /**
    * @brief Parameterized constructor for initializing a request.
@@ -28,10 +28,11 @@ public:
    * @param _headers Map of HTTP headers.
    */
   Request(std::string _method, std::string _path, std::string _url, std::string _protocol, std::string _payload,
-      std::unordered_map<std::string, std::string> query,
+      std::unordered_map<std::string, std::string> query_params,
+      std::unordered_map<std::string, std::string> path_params,
       std::unordered_map<std::string, std::string> _headers)
       : method(_method), path(_path), url(_url), protocol(_protocol), payload(_payload),
-        queryParameters(query), headers(_headers) {}
+        query_parameters(query_params), path_parameters(path_params), headers(_headers) {}
 
   /**
    * @brief Copy constructor.
@@ -40,15 +41,15 @@ public:
    */
   Request(const Request &req)
       : method(req.method), path(req.path), url(req.url), protocol(req.protocol), payload(req.payload),
-        queryParameters(req.queryParameters), headers(req.headers) {}
+        query_parameters(req.query_parameters), path_parameters(req.path_parameters), headers(req.headers) {}
 
   std::string method;  ///< HTTP method.
   std::string path;    ///< URL path.
   std::string url;    ///< Complete URL of the request
   std::string protocol = "HTTP/1.1";  ///< HTTP protocol version.
   std::string payload; ///< Raw request payload.
-  std::unordered_map<std::string, std::string> queryParameters;  ///< Query parameters from URL.
-  std::unordered_map<std::string, std::string> pathParameters;  ///< Path parameters from URL.
+  std::unordered_map<std::string, std::string> query_parameters;  ///< Query parameters from URL.
+  std::unordered_map<std::string, std::string> path_parameters;  ///< Path parameters from URL.
   std::unordered_map<std::string, std::string> headers;  ///< HTTP headers.
   JSONValue body;      ///< Parsed JSON body (if applicable).
 };
