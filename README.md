@@ -156,32 +156,3 @@ server.Get("/user/:id", [](Request &request, Response &response) {
     response.send("Hello user" + id).status(200);
 });
 ```
-
----
-
-# Architecture
-
-Before we dive into the details of the code let’s first take an overview of how the entire architecture of this library is working.
-
-Let’s see in order what each part of this architecture diagram means:
-
-1.  **Main thread:** This is the thread which starts when you execute your C++ program.
-2.  **Initializing phase:** In this portion the following things will be completed:
-    1.  **CORS configuration setup:** If there is any sort of CORS configuration used in the program then the library automatically enables that configuration for that particular server instance.
-    2.  **Global middlewares registration:** If there are any global middlewares that are registered using `server.use()` then those middlewares will be set inside the server instance so whenever any request arrives to the server it will go through those global middlewares. The execution order depends on how they are implemented, but in general it will go in the order of defining those middlewares.
-    3.  **API End points registration:** Now here comes the main thing, API end points, the route which is mentioned for that API end point is registered inside the server instance along with the route specific middlewares (OPTIONAL middlewares defined along with the route in an array) and the corresponding route handler (the function you define beside it which is responsible for request processing).
-
-    **NOTE:** In what order all of these things will be completed, depends on the code in the file, but it won’t change how the request will go through these. Even if you define CORS configuration or middlewares after API end points, the request will still follow this order CORS check(If defined) => global middlewares(If defined) => Route specific middleware (If any) => Route handler.
-
-3.  **Thread starting:** In this process all the necessary threads for the server will be started in detached mode (except for the main server thread obv.) i.e. they will run independently from main server thread on their own, but when server gets closed, these threads will be closed too. Here is the functionality of each thread:
-    1.  **Main server thread:** This is the main thread for your server if this thread gets closed the entire server shuts down. This is the thread which goes through the initializing phase. After the initialization is completed this thread will now be responsible for establishing TCP connections with the clients or other machines and starting the receiving of requests from the clients.
-    2.  **Receiver thread:** Receiver thread is responsible for receiving the data of requests from clients over the TCP connection established by the main server thread. After the Receiver thread receives a complete request from the client it pushes that request into the Incoming request queue(this will be discussed in detail further ahead).
-    3.  **Worker thread:** When a request arrives in the incoming request queue worker thread takes that request from the queue, removes it from the queue, and performs the main processing over the request data which follows this order:
-
-        Parsing request data => CORS check (If configured) => Global middleware execution (If defined) => Route specific middleware execution (If defined) => Route handler execution.
-
-        After this entire process response is pushed into the outgoing response queue (this will also be discussed in detail further ahead).
-
-        **NOTE:** The number of worker threads running concurrently in the server instance can be configured by using `.setWorkerThreads(unsigned int threads)` on server instance.
-
-    4.  **Response dispatcher thread:** After a response has arrived in the outgoing response queue this thread will take that response and send it to the appropriate client, along with handling keep alive or close connections (if a request sends a keep alive request then the socket for that client won’t be closed, if clients sends a close connection after sending the entire response the socket for that client will be closed immediately).
