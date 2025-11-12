@@ -1,3 +1,5 @@
+#pragma once
+
 #include "request.h"
 #include "response.h"
 #include "utils.h"
