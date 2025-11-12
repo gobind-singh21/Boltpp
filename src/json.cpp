@@ -145,13 +145,6 @@ std::nullptr_t& JSONValue::asNull() {
   }
 }
 
-/**
- * @brief Converts the JSONValue into a JSON-formatted string.
- *
- * Uses std::visit to handle all variant types.
- *
- * @return std::string The JSON string.
- */
 std::string JSONValue::stringify() const {
   std::string output = "";
   output.reserve(2048);
@@ -159,11 +152,6 @@ std::string JSONValue::stringify() const {
   return output;
 }
 
-/**
- * @brief Parses a JSON boolean value from the input.
- *
- * @return JSONValue The parsed boolean.
- */
 JSONValue JSONParser::parseBoolean() {
   if (input.compare(pos, 4, "true") == 0) {
     pos += 4;
@@ -177,11 +165,6 @@ JSONValue JSONParser::parseBoolean() {
     throw json_parse_error("Unexpected value caught, expected boolean");
 }
 
-/**
- * @brief Parses a JSON null value.
- *
- * @return JSONValue The parsed null value.
- */
 JSONValue JSONParser::parseNull() {
   if(pos <= size - 4 && get() == 'n' && get() == 'u' && get() == 'l' && get() == 'l')
     return JSONValue(nullptr);
@@ -189,11 +172,6 @@ JSONValue JSONParser::parseNull() {
     throw json_parse_error("Unexpected value caught, expected 'null'");
 }
 
-/**
- * @brief Parses a JSON string value.
- *
- * @return JSONValue The parsed string.
- */
 JSONValue JSONParser::parseString() {
   if(get() != '"')
     throw json_parse_error("Expected '\"' at beginning of the string");
@@ -227,11 +205,6 @@ JSONValue JSONParser::parseString() {
   return JSONValue(output);
 }
 
-/**
- * @brief Parses a JSON number.
- *
- * @return JSONValue The parsed number.
- */
 JSONValue JSONParser::parseNumber() {
   const char* start = &input[pos];
   while (pos < size && (std::isdigit(input[pos]) || input[pos] == '-' || input[pos] == '+' || input[pos] == '.' || input[pos] == 'e' || input[pos] == 'E')) {
@@ -244,11 +217,6 @@ JSONValue JSONParser::parseNumber() {
   return JSONValue(num);
 }
 
-/**
- * @brief Parses a JSON object.
- *
- * @return JSONValue The parsed object.
- */
 JSONValue JSONParser::parseObject() {
   JSONValue::Object obj;
   obj.reserve(128);
@@ -312,11 +280,6 @@ JSONValue JSONParser::parseObject() {
   return JSONValue(obj);
 }
 
-/**
- * @brief Parses a JSON array.
- *
- * @return JSONValue The parsed array.
- */
 JSONValue JSONParser::parseArray() {
   JSONValue::Array arr;
   arr.reserve(128);
@@ -367,11 +330,6 @@ JSONValue JSONParser::parseArray() {
   return JSONValue(arr);
 }
 
-/**
- * @brief Parses the entire JSON input string.
- *
- * @return JSONValue The resulting JSON value.
- */
 JSONValue JSONParser::parse() {
   skipWhitespaces();
   if(pos >= size || input == "")

@@ -1,11 +1,5 @@
 #include "utils.h"
 
-/**
- * @brief Trims leading and trailing whitespace characters from the input string.
- *
- * @param str The string to be trimmed.
- * @return std::string The trimmed string.
- */
 std::string trim(std::string_view view) {
   size_t start = 0;
   while (start < view.size() && std::isspace(view[start])) ++start;
@@ -14,13 +8,6 @@ std::string trim(std::string_view view) {
   return std::string(view.substr(start, end - start));
 }
 
-/**
- * @brief Splits a string by a given delimiter into a vector of substrings.
- *
- * @param str The string to split.
- * @param delim The delimiter character.
- * @return std::vector<std::string> The resulting vector of substrings.
- */
 std::vector<std::string> split(const std::string_view str, const char delim) {
   std::vector<std::string> res;
   size_t start = 0, end = 0;
