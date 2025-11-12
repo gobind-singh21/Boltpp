@@ -1,422 +1,187 @@
-# Boltpp – A High-Performance C++ HTTP Server 🚀
+With this library you can make a backend in C++ with a syntax styles like Express.js. So with this you can leverage the performance of C++ while having the simplicity of Express.js
 
-Boltpp is a lightweight, high-performance, and expressive C++17 HTTP server library inspired by the simplicity of Express.js. Built from the ground up using Winsock2 and modern C++ features, Boltpp provides a powerful toolkit for creating fast and scalable web services with zero external dependencies. It features a robust routing system, flexible middleware support, a built-in JSON parser, and asynchronous, multithreaded request handling right out of the box. ⚡️
+# Getting Started
 
----
+To make your server using this library, follow through this entire document to learn how you can make API endpoints, have middlewares, and configure CORS in your application.
 
-## 📚 Table of Contents
+## Basics:
 
-- [Boltpp – A High-Performance C++ HTTP Server 🚀](#boltpp--a-high-performance-c-http-server-)
-  - [📚 Table of Contents](#-table-of-contents)
-  - [✨ Key Features](#-key-features)
-  - [💡 Why Choose Boltpp?](#-why-choose-boltpp)
-  - [🧰 Installation and Setup](#-installation-and-setup)
-    - [Prerequisites](#prerequisites)
-    - [Option 1: As a Git Submodule (Recommended)](#option-1-as-a-git-submodule-recommended)
-    - [Option 2: Manual Build and System-Wide Install](#option-2-manual-build-and-system-wide-install)
-  - [🛫 Getting Started: Your First Server](#-getting-started-your-first-server)
-  - [📘 API Reference](#-api-reference)
-    - [The `HttpServer` Class](#the-httpserver-class)
-    - [Routing](#routing)
-    - [Middleware](#middleware)
-    - [The `Request` Object](#the-request-object)
-    - [The `Response` Object](#the-response-object)
-  - [🔒 Configuring CORS](#-configuring-cors)
-  - [📄 Working with JSON](#-working-with-json)
-    - [Creating a `JSONValue`](#creating-a-jsonvalue)
-    - [Modifying a `JSONValue`](#modifying-a-jsonvalue)
-    - [Accessing Data (Type-Safe)](#accessing-data-type-safe)
-    - [Stringifying a `JSONValue`](#stringifying-a-jsonvalue)
-  - [📊 Feature Comparison](#-feature-comparison)
-  - [🗺️ Project Roadmap](#️-project-roadmap)
-  - [🤝 Contributing](#-contributing)
-  - [📧 Contact](#-contact)
+To cover the basics, we’ll make a simple server which would send a “hello world” text back to the browser when we make a request on our server. After that, we’ll cover how to access the path and query parameters in a request, and at last, we’ll learn about how JSON works here.
 
----
+### Making first server instance:
 
-## ✨ Key Features
+To get started we need an instance or object of the `HttpServer` class; here the instance or object of this class will be our entire server handling every request.
 
-- 🔹 **Express.js-Inspired API**: A simple and intuitive interface that feels familiar to Node.js developers.
-- 🔹 **High-Performance I/O**: Asynchronous request handling using Windows IOCP for maximum throughput.
-- 🔹 **Powerful Routing**: Full support for all standard HTTP methods, parameterized paths (`/users/:id`), and query strings.
-- 🔹 **Flexible Middleware**: Chain global or route-specific middleware to handle logging, authentication, parsing, and more.
-- 🔹 **Built-in Parsers**: Out-of-the-box support for `application/json` and `application/x-www-form-urlencoded` request bodies.
-- 🔹 **Multithreading**: A configurable worker thread pool to process incoming requests concurrently.
-- 🔹 **Zero Dependencies**: Built with pure C++17 and the native Winsock2 library. No external libraries needed.
-- 🔹 **Connection Management**: Supports HTTP Keep-Alive for persistent connections, reducing latency.
-
----
-
-## 💡 Why Choose Boltpp?
-
--   **Simplicity and Productivity**: Get a server up and running in minutes with an API designed for clarity and ease of use. Focus on your application logic, not boilerplate.
--   **Native Performance**: Leverage the raw power of C++ for applications where every microsecond counts, such as game backends, real-time APIs, and high-traffic web services.
--   **Total Control**: With zero dependencies, Boltpp offers a lightweight, transparent, and easily integrated solution for any C++ project.
-
----
-
-## 🧰 Installation and Setup
-
-### Prerequisites
-
--   A C++17 compliant compiler (e.g., MSVC, MinGW-w64)
--   CMake (version 3.10 or later)
--   Ninja or another build system (optional, but recommended)
--   Windows Operating System (due to Winsock2/IOCP)
-
-### Option 1: As a Git Submodule (Recommended)
-
-This is the modern, recommended approach for integrating libraries into your CMake project. It avoids system-wide installs and keeps dependencies self-contained.
-
-1.  **Add Boltpp as a submodule to your project:**
-    ```bash
-    git submodule add https://github.com/your-username/Boltpp.git vendor/Boltpp
-    ```
-
-2.  **Configure your project's `CMakeLists.txt`:**
-    ```cmake
-    cmake_minimum_required(VERSION 3.10)
-    project(MyAwesomeApp)
-
-    set(CMAKE_CXX_STANDARD 17)
-    set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-    # Add the Boltpp subdirectory to your build
-    add_subdirectory(vendor/Boltpp)
-
-    # Add your executable
-    add_executable(MyAwesomeApp main.cpp)
-
-    # Link against the Boltpp library
-    target_link_libraries(MyAwesomeApp PRIVATE Boltpp::Boltpp)
-    ```
-
-### Option 2: Manual Build and System-Wide Install
-
-Follow these steps if you prefer to build and install the library on your system.
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/your-username/Boltpp.git
-cd Boltpp
-
-# 2. Create a build directory
-mkdir build && cd build
-
-# 3. Configure with CMake (specify your install location)
-cmake .. -G "Ninja" -DCMAKE_INSTALL_PREFIX="C:/your/install/path/Boltpp"
-
-# 4. Build the library
-ninja
-
-# 5. Install the library
-ninja install
-```
-Then, in your project's `CMakeLists.txt`, use `find_package` to locate and link the installed library.
-
----
-
-## 🛫 Getting Started: Your First Server
-
-The following example demonstrates a simple server with global middleware, a GET route that returns JSON, and a POST route.
+Before anything, make sure to include `httpserver.h` in your program which loads all of the necessary code you’ll need to make your server.
 
 ```cpp
-#include <iostream>
+HttpServer server;
+```
 
+**NOTE:** For the rest of the documentation, we’ll refer to this `HttpServer` object as our server instance.
+
+Now that we have a server instance, let’s get it up and running.
+
+To start the server we have a `.initServer()` method for our server instance which starts the server; one mandatory argument that you have to pass is the port number on which your server will run.
+
+```cpp
+server.initServer(8000);
+```
+
+Now this will start your server at the port `8000` on `localhost`.
+
+**NOTE:** After this function is executed the control flow will not go forward so you should always put this function in just before the return statement or at the end if you use it inside a void function.
+
+Now our server is running, let’s make a GET route to send “Hello World” back to the client, and don’t worry about other HTTP methods as the process for other methods will be the same as making a GET route.
+
+```cpp
+server.Get("/", [](Request &request, Response &response) {
+  response.send("Hello World!").status(200);
+});
+```
+
+Let’s try to break down everything in this API Endpoint so you can have a better understanding of what is happening under the hood.
+
+1.  **.Get(const std::string path, std::function<void(Request&, Response&)>):**
+    This method allows us to make a GET API Endpoint for a route. If you want to make for other methods follow this table to know about them:
+
+    | API Endpoint METHOD | Function to be used |
+    | ------------------- | ------------------- |
+    | POST                | `.Post()`           |
+    | PUT                 | `.Put()`            |
+    | PATCH               | `.Patch()`          |
+    | DELETE              | `.Delete()`         |
+
+    If you don’t know about `std::function` check it out [here](https://en.cppreference.com/w/cpp/utility/functional/function) as this will be useful when we further go ahead and make things more clear and also consider checking lambda functions in C++ if you don’t know about them otherwise feel free to continue with this documentation.
+
+    **NOTE:** Signature for each method is the same as others.
+
+    We’ll see more about Request and Response classes later in the documentation.
+
+2.  **“/” (const std::string path):**
+    This is the route on which our GET method would be available. You can change it according to your own needs for example: “/user”, “/profile”, “/home/posts”
+
+3.  **Route handler (std::function<void(Request&, Response&)>):**
+    The function you see beside the route, is the function which executes on the request, here we call it as a route handler. Inside this route handler you can put your own code.
+
+4.  **Request &request:**
+    This is a reference to a `Request` object which represents the request received from the client wrapped in a class so that you can access data inside the request easily.
+
+    **NOTE:** Just because it is a reference doesn’t mean you have to define it somewhere, the library will manage it internally, you just have to use the reference in your route handler to access the data of the request.
+
+5.  **Response &response:**
+    This is a reference to a `Response` object which represents the response server will send for the request it receives back to the client. In this you can edit what you’ll send back to the client according to your needs.
+
+    **NOTE:** Again you don’t have to define a response object anywhere, the library will do it under the hood.
+    **NOTE:** Response will be sent after the entire route handler is executed.
+
+You may also have noticed in the above snippet that we have a `.send()` associated with the response object; this send method sets the payload of the response object to the string provided inside of it and content type as plain text, along with it there is a `.status()` which sets the status code for the response which is provided in the arguments of this function.
+
+There are more methods for the response which we’ll cover later on.
+
+**NOTE:** You can use another `.send()` after one send, and the final data sent to the server will be the one provided in the last `.send()` call.
+
+After all this your final program for a hello world server will be like this:
+
+```cpp
 #include "httpserver.h"
-#include "json.h"
 
 int main() {
-    // 1. Create an instance of the HttpServer
+    // Server instance creation
     HttpServer server;
 
-    // 2. Configure Cross-Origin Resource Sharing (CORS)
-    server.createCorsConfig([](CorsConfig &config) {
-        config.allowedOrigins = {"*"}; // Allow requests from any origin
-        config.allowedMethods = {"POST", "PUT", "GET", "DELETE", "OPTIONS"};
-        config.withCredentials = false;
-    });
-
-    // 3. Register global middleware. These run for every request in order.
-    server.use([](Request &request, Response &response, long long &next) {
-        std::cout << "Request received for URL: " << request.url << std::endl;
-        next++; // Pass control to the next middleware
-    });
-    server.use([](Request &request, Response &response, long long &next) {
-        if (!request.payload.empty()) {
-            std::cout << "Request payload: " << request.payload << std::endl;
-        }
-        next++;
-    });
-
-    // 4. Define a GET route that returns JSON data
-    server.Get("/user", [](Request &request, Response &response) {
-        JSONValue::Object userInfo;
-        userInfo["name"] = "Alex";
-        userInfo["details"] = JSONValue::Object{
-            {"age", 30.0},
-            {"height", 160.0},
-        };
-        response.status(200).json(userInfo);
-    });
-
-    // 5. Define a root GET route
+    // Defining Route
     server.Get("/", [](Request &request, Response &response) {
-        response.status(200).send("Hello World!");
+        // Setting response payload and status code
+        response.send("Hello World!")
+                .status(200);
     });
 
-    // 6. Initialize and start the server on port 9000
-    // This function is blocking and will run until the program is terminated.
-    try {
-        server.initServer(9000, []() {
-            std::cout << "Server is running on port 9000..." << std::endl;
-        });
-    } catch (const std::runtime_error& e) {
-        std::cerr << "Error initializing server: " << e.what() << std::endl;
-        return 1;
-    }
+    // Starting server and now it won't go to return statement as here the control flow halts
+    server.initServer(8000);
 
     return 0;
 }
 ```
 
----
+## Getting Query and Path parameters
 
-## 📘 API Reference
+In a lot of scenarios you would like to send path and query parameters in your requests. So let’s see how we can access them.
 
-### The `HttpServer` Class
+### Query parameter:
 
-This is the main class for configuring and running your web server.
+Query parameters are values that are sent in key value pairs in the request url.
+For example:
 
--   `use(middleware)`
-    Adds a global middleware that will be executed for every incoming request, in the order it was added.
-    -   **`middleware`**: A function with the signature `void(Request&, Response&, long long& next)`.
+`http://example.com/user?id=123&name=alex`
 
--   `setThreads(unsigned int count)`
-    Sets the number of worker threads in the thread pool. Defaults to 1.
-    -   **`count`**: The number of threads to handle requests concurrently. A good starting point is `std::thread::hardware_concurrency()`.
+In this case over here we have 2 query parameter key value pairs separated by ‘&’:
 
--   `initServer(int port, callback, ...)`
-    Initializes all server components (sockets, IOCP, threads) and binds to the specified port. This is a **blocking call** that starts the server's main event loop.
-    -   **`port`**: The network port to listen on (e.g., `8080`).
-    -   **`callback`**: An optional `std::function<void()>` that is executed once the server is successfully initialized and ready to accept connections.
+*   `id = 123`
+*   `name = alex`
 
--   `Get(path, middlewares, handler)` / `Post(...)` / `Put(...)` / `Patch(...)` / `Delete(...)`
-    Registers a handler for a specific HTTP method and path. See the [Routing](#routing) section for details.
-
-### Routing
-
-Boltpp supports static, parameterized, and query-based routes.
-
--   **Static Routes**: Match an exact path.
-    ```cpp
-    server.Get("/about", ...);
-    ```
-
--   **Parameterized Routes**: Use the `:param` syntax to capture dynamic segments of a URL.
-    ```cpp
-    // Matches /users/123, /users/abc, etc.
-    server.Get("/users/:id", [](Request& req, Response& res) {
-        // Access the captured parameter
-        std::string userId = req.pathParameters["id"];
-        res.send("Fetching user with ID: " + userId);
-    });
-    ```
-
--   **Query Parameters**: Automatically parsed from the URL's query string.
-    ```cpp
-    // For a request to /search?q=boltpp&lang=cpp
-    server.Get("/search", [](Request& req, Response& res) {
-        std::string query = req.queryParameters["q"];      // "boltpp"
-        std::string lang = req.queryParameters["lang"];    // "cpp"
-        res.send("Searching for " + query + " in " + lang);
-    });
-    ```
-
-### Middleware
-
-Middleware are functions that execute in a sequence before the final route handler. They are ideal for cross-cutting concerns.
-
--   **Signature**: `void(Request& req, Response& res, long long& next)`
--   **Control Flow**:
-    -   `next++`: Call this to pass control to the next middleware in the chain. If you don't call it, the request handling stops.
-    -   `next = -1`: **Halt execution immediately.** No further middleware or the route handler will be called. You *must* send a response in the middleware if you do this.
-    -   `next += 2`: (Advanced) Skips the next middleware in the chain. Use with caution.
-
--   **Example: Custom Logger Middleware**
-    ```cpp
-    void logger(Request& req, Response& res, long long& next) {
-        std::cout << "Request received: " << req.method << " " << req.url << std::endl;
-        next++; // Pass control to the next function
-    }
-
-    server.use(logger);
-    ```
-
-### The `Request` Object
-
-Contains all information about an incoming HTTP request.
-
-| Property          | Type                                                 | Description                                            |
-| ----------------- | ---------------------------------------------------- | ------------------------------------------------------ |
-| `method`          | `std::string`                                        | The HTTP method (e.g., "GET", "POST").                 |
-| `url`             | `std::string`                                        | The full original URL, including path and query string. |
-| `path`            | `std::string`                                        | The path portion of the URL, without the query string. |
-| `headers`         | `std::unordered_map<std::string, std::string>`       | A map of all HTTP request headers.                     |
-| `pathParameters`  | `std::unordered_map<std::string, std::string>`       | Key-value pairs of captured route parameters.          |
-| `queryParameters` | `std::unordered_map<std::string, std::string>`       | Key-value pairs from the URL query string.             |
-| `payload`         | `std::string`                                        | The raw, unparsed request body.                        |
-| `body`            | `JSONValue`                                          | The parsed request body (if a parser middleware ran).  |
-
-### The `Response` Object
-
-Used to construct and send the HTTP response back to the client. Methods are chainable.
-
-| Method                    | Return Type | Description                                                              |
-| ------------------------- | ----------- | ------------------------------------------------------------------------ |
-| `status(int code)`        | `Response&` | Sets the HTTP status code (e.g., `200`, `404`).                            |
-| `send(std::string_view)`  | `Response&` | Sets the response body as plain text and sets `Content-Type: text/plain`. |
-| `json(const JSONValue&)`  | `Response&` | Stringifies the `JSONValue` and sets `Content-Type: application/json`.     |
-| `setHeader(key, value)`   | `Response&` | Sets a custom HTTP response header.                                      |
-
-**Example of Chaining:**
-```cpp
-res.status(404)
-   .setHeader("X-Custom-Header", "Error")
-   .send("Not Found");
-```
----
-
-## 🔒 Configuring CORS
-
-Boltpp provides built-in support for CORS, which is essential for allowing web applications from different domains to securely access your API.
-
-### `server.createCorsConfig(configurer)`
-
-This method accepts a lambda function that gives you mutable access to a `CorsConfig` object, allowing you to define your server's CORS policy.
+To access these key value pairs the request object has a member called `query_parameters` which is an `unordered_map` and stores key value pairs of strings.
 
 ```cpp
-server.createCorsConfig([](CorsConfig& config) {
-    // Allow requests from any origin
-    config.allowedOrigins = {"*"};
-
-    // Or, for better security, specify allowed origins explicitly
-    // config.allowedOrigins = {"http://localhost:3000", "https://my-frontend.com"};
-
-    // Specify the HTTP methods clients are allowed to use
-    config.allowedMethods = {"GET", "POST", "PUT", "DELETE", "OPTIONS"};
-
-    // Specify the headers clients can include in their requests
-    config.allowedHeaders = {"Content-Type", "Authorization"};
-
-    // Set to true to allow cookies and credentials to be sent with requests
-    config.withCredentials = false;
+server.Get("/", [](Request &request, Response &response) {
+    std::string id = request.query_parameters["id"];
+    std::string name = request.query_parameters["name"];
+    std::cout << id << ' ' << name << std::endl;
+    response.send("Hello World!")
+            .status(200);
 });
 ```
 
-### `CorsConfig` Fields
+### Path parameter:
 
--   🔹 **`allowedOrigins`**: An `std::unordered_set<std::string>` of origins permitted to make requests. Use `"*"` to allow any origin.
--   🔹 **`allowedMethods`**: An `std::unordered_set<std::string>` of allowed HTTP methods (e.g., `"GET"`, `"POST"`).
--   🔹 **`allowedHeaders`**: An `std::unordered_set<std::string>` of HTTP headers that the client may send.
--   🔹 **`exposedHeaders`**: An `std::unordered_set<std::string>` of response headers that the browser is allowed to access.
--   🔹 **`withCredentials`**: A `bool`. If `true`, it allows browsers to send credentials (like cookies).
+Path parameters are directly included in the route path after a forward slash.
 
-**Important Note**: For security reasons, if `withCredentials` is set to `true`, you **cannot** use `"*"` for `allowedOrigins`. You must specify the exact origin(s).
+You can make a route with parameter by having the variable name after a `:`.
 
----
+`"/user/:id"`
 
-## 📄 Working with JSON
+So in the above route id would its path parameter which can vary for different requests.
+Example:
 
-Boltpp includes a powerful, type-safe `JSONValue` class for handling JSON data.
+A request is made on `"/user/123"`
 
-### Creating a `JSONValue`
+Then the value for `id` would be `123`
 
-Use initializers for clear and concise construction.
+In order to access path parameter the request object has a member called `path_parameters` which is an `unordered_map` and stores key value pairs of strings.
 
 ```cpp
-JSONValue::Object user; // Creates a JSON object
-user["name"] = "Alice";
-user["age"] = 30.0;
-user["isStudent"] = false;
-user["courses"] = JSONValue::Array{"History", "Math"};
-```
-
-### Modifying a `JSONValue`
-
-A default-constructed `JSONValue` is `null`. To use it as an object or array, you must first assign it the correct type.
-
-```cpp
-// Method 1: Initialize with the desired type
-JSONValue data(JSONValue::Object);
-data["key"] = "value"; // Correct
-
-// Method 2: Assign an object or array to it
-JSONValue items;
-items = JSONValue::Array{}; // Now it's an array
-items = "First Item";     // This is now an error, as array is empty, and operator[] doesn't emplace
-```
-*NOTE:* `operator[]` for arrays in `JSONValue` does not `emplace_back`, it only provides access.
-
-### Accessing Data (Type-Safe)
-
-Use the `.asType()` methods to retrieve values. Accessing a value with the wrong type will throw a `json_type_error` exception.
-
-```cpp
-try {
-    std::string name = user["name"].asString();
-    double age = user["age"].asDouble();
-    bool isStudent = user["isStudent"].asBool();
-} catch (const json_type_error& e) {
-    std::cerr << "JSON type error: " << e.what() << std::endl;
-}
-```
-
-### Stringifying a `JSONValue`
-
-Convert a `JSONValue` object into a standard JSON string.
-
-```cpp
-std::string jsonString = user.stringify();
-// {"name":"Alice","age":30.0,"isStudent":false,"courses":["History","Math"]}
+server.Get("/user/:id", [](Request &request, Response &response) {
+    std::string id = request.path_parameters["id"];
+    std::cout << "User id: " << id << std::endl;
+    response.send("Hello user" + id).status(200);
+});
 ```
 
 ---
 
-## 📊 Feature Comparison
+# Architecture
 
-| Feature             | Boltpp                                  | Crow                               | Drogon                            |
-| ------------------- | --------------------------------------- | ---------------------------------- | --------------------------------- |
-| **Language**        | C++17                                   | C++11                              | C++17                             |
-| **Primary I/O Model** | **IOCP (Windows)**                      | ASIO (epoll/kqueue)                | epoll                             |
-| **JSON Parsing**    | **Built-in, Type-Safe**                 | External (e.g., nlohmann)          | Built-in                          |
-| **Dependencies**    | **None**                                | Boost (optional)                   | libpqxx, json-cpp, etc.           |
-| **Simplicity/API**  | ⭐⭐⭐⭐⭐ (Express.js-like)                | ⭐⭐⭐⭐ (Fluent)                      | ⭐⭐⭐ (Complex, feature-rich)    |
-| **Build Speed**     | **Very Fast**                           | Medium                             | Slow (heavy template usage)       |
+Before we dive into the details of the code let’s first take an overview of how the entire architecture of this library is working.
 
----
+Let’s see in order what each part of this architecture diagram means:
 
-## 🗺️ Project Roadmap
+1.  **Main thread:** This is the thread which starts when you execute your C++ program.
+2.  **Initializing phase:** In this portion the following things will be completed:
+    1.  **CORS configuration setup:** If there is any sort of CORS configuration used in the program then the library automatically enables that configuration for that particular server instance.
+    2.  **Global middlewares registration:** If there are any global middlewares that are registered using `server.use()` then those middlewares will be set inside the server instance so whenever any request arrives to the server it will go through those global middlewares. The execution order depends on how they are implemented, but in general it will go in the order of defining those middlewares.
+    3.  **API End points registration:** Now here comes the main thing, API end points, the route which is mentioned for that API end point is registered inside the server instance along with the route specific middlewares (OPTIONAL middlewares defined along with the route in an array) and the corresponding route handler (the function you define beside it which is responsible for request processing).
 
-Boltpp is actively developing. Future enhancements include:
+    **NOTE:** In what order all of these things will be completed, depends on the code in the file, but it won’t change how the request will go through these. Even if you define CORS configuration or middlewares after API end points, the request will still follow this order CORS check(If defined) => global middlewares(If defined) => Route specific middleware (If any) => Route handler.
 
--   ✅ **Cross-Platform Support**: Implement `epoll` (Linux) and `kqueue` (macOS) for the I/O backend.
--   ✅ **HTTPS/TLS Support**: Integrated TLS for secure communication.
--   ✅ **WebSocket Support**: Enable real-time, bidirectional communication.
--   ✅ **HTTP/2 Support**: Improve performance with the latest HTTP standard.
--   ✅ **Enhanced Error Handling**: More granular error types and better diagnostics.
+3.  **Thread starting:** In this process all the necessary threads for the server will be started in detached mode (except for the main server thread obv.) i.e. they will run independently from main server thread on their own, but when server gets closed, these threads will be closed too. Here is the functionality of each thread:
+    1.  **Main server thread:** This is the main thread for your server if this thread gets closed the entire server shuts down. This is the thread which goes through the initializing phase. After the initialization is completed this thread will now be responsible for establishing TCP connections with the clients or other machines and starting the receiving of requests from the clients.
+    2.  **Receiver thread:** Receiver thread is responsible for receiving the data of requests from clients over the TCP connection established by the main server thread. After the Receiver thread receives a complete request from the client it pushes that request into the Incoming request queue(this will be discussed in detail further ahead).
+    3.  **Worker thread:** When a request arrives in the incoming request queue worker thread takes that request from the queue, removes it from the queue, and performs the main processing over the request data which follows this order:
 
----
+        Parsing request data => CORS check (If configured) => Global middleware execution (If defined) => Route specific middleware execution (If defined) => Route handler execution.
 
-## 🤝 Contributing
+        After this entire process response is pushed into the outgoing response queue (this will also be discussed in detail further ahead).
 
-Contributions are welcome! If you have suggestions, find a bug, or want to add a feature, please feel free to open an issue or submit a pull request.
+        **NOTE:** The number of worker threads running concurrently in the server instance can be configured by using `.setWorkerThreads(unsigned int threads)` on server instance.
 
----
-
-## 📧 Contact
-
-For questions or collaboration, please reach out:
-
--   **Email**: [sgobind577@gmail.com]
--   **LinkedIn**: [https://www.linkedin.com/in/gobind-singh-maan-2548a5157/]
+    4.  **Response dispatcher thread:** After a response has arrived in the outgoing response queue this thread will take that response and send it to the appropriate client, along with handling keep alive or close connections (if a request sends a keep alive request then the socket for that client won’t be closed, if clients sends a close connection after sending the entire response the socket for that client will be closed immediately).
